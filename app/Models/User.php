@@ -15,7 +15,12 @@ use Spatie\Permission\Traits\HasRoles;
 class User extends Authenticatable
 {
     use HasApiTokens, HasFactory, HasRoles, SoftDeletes;
+    protected string $guard_name = 'sanctum';
 
+    public function getDefaultGuardName(): string
+    {
+        return 'sanctum';
+    }
     protected $fillable = [
         'mobile',
         'password',

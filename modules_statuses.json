@@ -6,5 +6,6 @@
     "Clinics": true,
     "Access": true,
     "Customers": true,
-    "CustomerDocuments": true
+    "CustomerDocuments": true,
+    "Loans": true
 }

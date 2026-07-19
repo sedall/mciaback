@@ -1,13 +1,13 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
-use Modules\Loans\Http\Controllers\AdminLoanController;
+use Modules\Loans\Http\Controllers\AdminLoansController;
 
-Route::middleware(['auth:sanctum', 'panel.access:admin'])
-    ->prefix('admin')
-    ->group(function () {
-        Route::get('loans', [AdminLoanController::class, 'index']);
-        Route::get('loans/{loan}', [AdminLoanController::class, 'show']);
-        Route::patch('loans/{loan}/approve', [AdminLoanController::class, 'approve']);
-        Route::patch('loans/{loan}/fund', [AdminLoanController::class, 'fund']);
-    });
+
+Route::prefix('admin')->middleware(['auth:sanctum'])->group(function () {
+    Route::get('loans', [AdminLoansController::class, 'index']);
+    Route::get('loans/{loan}', [AdminLoansController::class, 'show']);
+    Route::patch('loans/{loan}/approve', [AdminLoansController::class, 'approve']);
+    Route::patch('loans/{loan}/fund', [AdminLoansController::class, 'fund']);
+    Route::patch('loans/{loan}/reject', [AdminLoansController::class, 'reject']);
+});

@@ -5,6 +5,7 @@ namespace Modules\Access\Database\Seeders;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
 use App\Models\User;
+use Spatie\Permission\Models\Role;
 
 class AdminClinicUsersSeeder extends Seeder
 {
@@ -21,7 +22,8 @@ class AdminClinicUsersSeeder extends Seeder
                 // اگر فیلد دیگری مثل is_active داری، اینجا اضافه کن
             ]
         );
-        $admin->syncRoles(['admin']);
+        $adminRole = Role::findByName('admin', 'sanctum');
+        $admin->syncRoles([$adminRole]);
 
         // 2. ایجاد یا به‌روزرسانی Clinic
         $clinic = User::updateOrCreate(
@@ -30,7 +32,8 @@ class AdminClinicUsersSeeder extends Seeder
                 'password' => Hash::make('Clinic@123456'),
             ]
         );
-        $clinic->syncRoles(['clinic']);
+        $clinicRole = Role::findByName('clinic', 'sanctum');
+        $clinic->syncRoles([$clinicRole]);
 
         $this->command->info('Admin and Clinic users seeded successfully.');
     }

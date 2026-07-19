@@ -17,10 +17,10 @@ class CustomerProfileApiTest extends TestCase
     {
         parent::setUp();
 
-        Role::findOrCreate('admin');
-        Role::findOrCreate('customer');
-        Role::findOrCreate('clinic');
-        Role::findOrCreate('expert');
+        Role::findOrCreate('admin', 'sanctum');
+        Role::findOrCreate('customer', 'sanctum');
+        Role::findOrCreate('clinic', 'sanctum');
+        Role::findOrCreate('expert', 'sanctum');
     }
 
     protected function createCustomerUser(array $attributes = []): User

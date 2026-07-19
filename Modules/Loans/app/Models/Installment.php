@@ -13,13 +13,12 @@ class Installment extends Model
     protected $fillable = [
         'loan_id',
         'sequence',
-        'due_date',
         'principal_amount',
         'fee_amount',
         'late_fee_amount',
         'paid_amount',
-        'paid_at',
         'status',
+        'due_date',
     ];
 
     protected $casts = [

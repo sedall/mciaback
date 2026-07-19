@@ -2,17 +2,12 @@
 
 namespace Modules\Loans\Models;
 
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\SoftDeletes;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Relations\HasMany;
-use App\Models\User;
 
 class Loan extends Model
 {
-    use SoftDeletes;
-
-    protected $table = 'loans';
+    use HasFactory;
 
     protected $fillable = [
         'customer_id',
@@ -33,6 +28,10 @@ class Loan extends Model
     ];
 
     protected $casts = [
+        'principal_amount' => 'integer',
+        'fee_amount' => 'integer',
+        'total_payable' => 'integer',
+        'installments_count' => 'integer',
         'submitted_at' => 'datetime',
         'approved_at' => 'datetime',
         'funded_at' => 'datetime',
@@ -42,22 +41,22 @@ class Loan extends Model
         'meta' => 'array',
     ];
 
-    public function customer(): BelongsTo
+    public function customer()
     {
-        return $this->belongsTo(User::class, 'customer_id');
+        return $this->belongsTo(config('auth.providers.users.model'), 'customer_id');
     }
 
-    public function clinic(): BelongsTo
+    public function clinic()
     {
-        return $this->belongsTo(User::class, 'clinic_id');
+        return $this->belongsTo(Clinic::class, 'clinic_id');
     }
 
-    public function installments(): HasMany
+    public function installments()
     {
         return $this->hasMany(Installment::class);
     }
 
-    public function transactions(): HasMany
+    public function transactions()
     {
         return $this->hasMany(LoanTransaction::class);
     }

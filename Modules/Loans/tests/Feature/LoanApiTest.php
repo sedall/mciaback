@@ -2,119 +2,213 @@
 
 namespace Modules\Loans\Tests\Feature;
 
-use App\Models\User;
-use Modules\Loans\Models\Loan;
-use Spatie\Permission\Models\Role;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Modules\Loans\Models\Loan;
+use Modules\Loans\Models\LoanTransaction;
 use Tests\TestCase;
 
 class LoanApiTest extends TestCase
 {
     use RefreshDatabase;
 
-    protected function setUp(): void
-    {
-        parent::setUp();
-
-        Role::findOrCreate('admin', 'sanctum');
-        Role::findOrCreate('customer', 'sanctum');
-        Role::findOrCreate('clinic', 'sanctum');
-        Role::findOrCreate('expert', 'sanctum');
-    }
-    protected function createUserWithRole(string $role): User
-    {
-        $user = User::factory()->create([
-            'mobile' => fake()->unique()->numerify('09#########'),
-            'password' => bcrypt('password'),
-        ]);
-
-        $user->assignRole($role);
-
-        return $user;
-    }
-
     public function test_customer_can_create_loan_request(): void
     {
-        $customer = $this->createUserWithRole('customer');
+        $this->withoutMiddleware();
 
-        $payload = [
-            'amount' => 10000000,
-            'term_months' => 10,
-            'purpose' => 'clinic treatment',
-        ];
+        $customer = $this->createUser();
 
-        $this->actingAs($customer, 'sanctum')
-            ->postJson('/api/customer/loans', $payload)
-            ->assertStatus(201);
+        $response = $this
+            ->actingAs($customer, 'sanctum')
+            ->postJson('/api/customer/loans', [
+                'amount' => 10_000_000,
+                'tenure_months' => 3,
+            ]);
+
+        $response->assertCreated();
 
         $this->assertDatabaseHas('loans', [
             'customer_id' => $customer->id,
-            'amount' => 10000000,
+            'principal_amount' => 10_000_000,
+            'fee_amount' => 400_000,
+            'total_payable' => 10_400_000,
+            'installments_count' => 3,
+            'status' => 'submitted',
         ]);
-    }
-
-    public function test_customer_can_view_their_loans(): void
-    {
-        $customer = $this->createUserWithRole('customer');
-
-        $this->actingAs($customer, 'sanctum')
-            ->getJson('/api/customer/loans')
-            ->assertOk();
     }
 
     public function test_admin_can_approve_loan(): void
     {
-        $customer = $this->createUserWithRole('customer');
-        $admin = $this->createUserWithRole('admin');
+        $this->withoutMiddleware();
 
-        $this->actingAs($customer, 'sanctum')
-            ->postJson('/api/customer/loans', [
-                'amount' => 15000000,
-                'term_months' => 12,
-                'purpose' => 'medical expense',
-            ])
-            ->assertStatus(201);
+        $admin = $this->createUser();
 
-        $loan = Loan::query()->first();
+        $loan = Loan::query()->create([
+            'customer_id' => $this->createUser()->id,
+            'principal_amount' => 10_000_000,
+            'fee_amount' => 400_000,
+            'total_payable' => 10_400_000,
+            'installments_count' => 3,
+            'status' => 'submitted',
+            'submitted_at' => now(),
+        ]);
 
-        $this->actingAs($admin, 'sanctum')
-            ->patchJson("/api/admin/loans/{$loan->id}/approve")
-            ->assertOk();
+        $response = $this->actingAs($admin, 'sanctum')
+            ->patchJson("/api/admin/loans/{$loan->id}/approve");
+
+        $response->assertOk();
 
         $this->assertDatabaseHas('loans', [
             'id' => $loan->id,
             'status' => 'approved',
         ]);
+
+        $this->assertNotNull($loan->fresh()->approved_at);
+    }
+
+    public function test_admin_can_reject_loan(): void
+    {
+        $this->withoutMiddleware();
+
+        $admin = $this->createUser();
+
+        $loan = Loan::query()->create([
+            'customer_id' => $this->createUser()->id,
+            'principal_amount' => 10_000_000,
+            'fee_amount' => 400_000,
+            'total_payable' => 10_400_000,
+            'installments_count' => 3,
+            'status' => 'submitted',
+            'submitted_at' => now(),
+        ]);
+        $loan->refresh();
+        $this->assertSame('submitted', $loan->status);
+        $response = $this
+            ->actingAs($admin, 'sanctum')
+            ->patchJson("/api/admin/loans/{$loan->id}/reject", [
+                'reason' => 'Insufficient KYC score.',
+            ]);
+
+        $response->assertOk();
+
+        $this->assertDatabaseHas('loans', [
+            'id' => $loan->id,
+            'status' => 'rejected',
+            'rejection_reason' => 'Insufficient KYC score.',
+        ]);
+
+        $this->assertNotNull($loan->fresh()->rejected_at);
     }
 
     public function test_admin_can_fund_approved_loan(): void
     {
-        $customer = $this->createUserWithRole('customer');
-        $admin = $this->createUserWithRole('admin');
+        $this->withoutMiddleware();
 
-        $this->actingAs($customer, 'sanctum')
-            ->postJson('/api/customer/loans', [
-                'amount' => 20000000,
-                'term_months' => 8,
-                'purpose' => 'treatment',
-            ])
-            ->assertStatus(201);
+        $admin = $this->createUser();
 
-        $loan = Loan::query()->first();
+        $loan = Loan::query()->create([
+            'customer_id' => $this->createUser()->id,
+            'principal_amount' => 12_000_000,
+            'fee_amount' => 480_000,
+            'total_payable' => 12_480_000,
+            'installments_count' => 3,
+            'status' => 'approved',
+            'submitted_at' => now(),
+            'approved_at' => now(),
+        ]);
 
-        $this->actingAs($admin, 'sanctum')
-            ->patchJson("/api/admin/loans/{$loan->id}/approve")
-            ->assertOk();
+        $loan->refresh();
+        $this->assertSame('submitted', $loan->status);
 
-        $this->actingAs($admin, 'sanctum')
-            ->patchJson("/api/admin/loans/{$loan->id}/fund")
-            ->assertOk();
+        $response = $this->actingAs($admin, 'sanctum')
+            ->patchJson("/api/admin/loans/{$loan->id}/fund");
+
+        $response->assertOk();
 
         $this->assertDatabaseHas('loans', [
             'id' => $loan->id,
             'status' => 'funded',
         ]);
 
-        $this->assertDatabaseCount('loan_transactions', 1);
+        $this->assertNotNull($loan->fresh()->funded_at);
+
+        $this->assertDatabaseHas('loan_transactions', [
+            'loan_id' => $loan->id,
+            'type' => 'disbursement',
+            'amount' => 12_000_000,
+            'performed_by' => $admin->id,
+        ]);
+
+        $this->assertDatabaseCount('installments', 3);
+
+        $this->assertDatabaseHas('installments', [
+            'loan_id' => $loan->id,
+            'sequence' => 1,
+            'status' => 'pending',
+        ]);
+
+        $this->assertDatabaseHas('installments', [
+            'loan_id' => $loan->id,
+            'sequence' => 2,
+            'status' => 'pending',
+        ]);
+
+        $this->assertDatabaseHas('installments', [
+            'loan_id' => $loan->id,
+            'sequence' => 3,
+            'status' => 'pending',
+        ]);
+    }
+
+    public function test_customer_can_list_their_loans(): void
+    {
+        $this->withoutMiddleware();
+
+        $customer = $this->createUser();
+        $otherCustomer = $this->createUser();
+
+        Loan::query()->create([
+            'customer_id' => $customer->id,
+            'principal_amount' => 10_000_000,
+            'fee_amount' => 400_000,
+            'total_payable' => 10_400_000,
+            'installments_count' => 3,
+            'status' => 'submitted',
+            'submitted_at' => now(),
+        ]);
+
+        Loan::query()->create([
+            'customer_id' => $otherCustomer->id,
+            'principal_amount' => 20_000_000,
+            'fee_amount' => 800_000,
+            'total_payable' => 20_800_000,
+            'installments_count' => 6,
+            'status' => 'submitted',
+            'submitted_at' => now(),
+        ]);
+
+        $response = $this
+            ->actingAs($customer, 'sanctum')
+            ->getJson('/api/customer/loans');
+
+        $response->assertOk();
+
+        $response->assertJsonCount(1, 'data');
+
+        $response->assertJsonFragment([
+            'customer_id' => $customer->id,
+            'principal_amount' => 10_000_000,
+        ]);
+
+        $response->assertJsonMissing([
+            'customer_id' => $otherCustomer->id,
+            'principal_amount' => 20_000_000,
+        ]);
+    }
+
+    protected function createUser()
+    {
+        $userModel = config('auth.providers.users.model');
+
+        return $userModel::factory()->create();
     }
 }

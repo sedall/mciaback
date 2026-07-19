@@ -19,6 +19,7 @@ class RoleAssignmentService
             'customer',
             'clinic',
             'admin',
+            'expert',
         ];
 
         if (! in_array($entryPoint, $allowedEntryPoints, true)) {

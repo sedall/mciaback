@@ -4,25 +4,21 @@ namespace Modules\Loans\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use App\Models\User;
 
 class LoanTransaction extends Model
 {
-    protected $table = 'loan_transactions';
-
     protected $fillable = [
         'loan_id',
-        'installment_id',
         'type',
         'amount',
         'performed_by',
-        'reference',
-        'description',
         'meta',
         'transacted_at',
     ];
 
     protected $casts = [
+        'amount' => 'integer',
+        'performed_by' => 'integer',
         'meta' => 'array',
         'transacted_at' => 'datetime',
     ];
@@ -30,15 +26,5 @@ class LoanTransaction extends Model
     public function loan(): BelongsTo
     {
         return $this->belongsTo(Loan::class);
-    }
-
-    public function installment(): BelongsTo
-    {
-        return $this->belongsTo(Installment::class);
-    }
-
-    public function performer(): BelongsTo
-    {
-        return $this->belongsTo(User::class, 'performed_by');
     }
 }

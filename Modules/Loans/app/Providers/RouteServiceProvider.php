@@ -50,6 +50,10 @@ class RouteServiceProvider extends ServiceProvider
     }
     protected function mapAdminApiRoutes(): void
     {
-        Route::middleware('api')->prefix('api')->name('api.admin.')->group(module_path($this->name, '/routes/api-admin.php'));
+        Route::middleware('api')
+            ->prefix('api')
+            ->name('api.admin.')
+            ->group(module_path($this->name, '/routes/api-admin.php'));
     }
+
 }

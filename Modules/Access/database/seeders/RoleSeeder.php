@@ -10,7 +10,7 @@ class RoleSeeder extends Seeder
 {
     public function run(): void
     {
-        $guardName = 'web';
+        $guardName = 'sanctum';
 
         $permissions = [
             'panel.admin.access',

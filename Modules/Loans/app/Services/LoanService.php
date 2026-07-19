@@ -4,8 +4,8 @@ namespace Modules\Loans\Services;
 
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
-use Modules\Loans\Models\Loan;
 use Modules\Loans\Models\Installment;
+use Modules\Loans\Models\Loan;
 use Modules\Loans\Models\LoanTransaction;
 use RuntimeException;
 
@@ -13,28 +13,35 @@ class LoanService
 {
     public function __construct(
         protected InstallmentGenerator $installmentGenerator
-    ) {}
+    ) {
+    }
 
-    public function createLoan(int $customerId, int $amount, int $tenureMonths): Loan
-    {
+    public function createLoan(
+        int $customerId,
+        int $amount,
+        int $tenureMonths
+    ): Loan {
         $this->assertMvpRules($amount, $tenureMonths);
 
-        $feeAmount = (int) round($amount * 0.04); // 4%
+        $feeAmount = (int) round($amount * 0.04);
         $totalPayable = $amount + $feeAmount;
 
-        return Loan::create([
+        return Loan::query()->create([
             'customer_id' => $customerId,
-            'amount' => $amount,
+            'principal_amount' => $amount,
             'fee_amount' => $feeAmount,
             'total_payable' => $totalPayable,
-            'tenure_months' => $tenureMonths,
+            'installments_count' => $tenureMonths,
             'status' => 'submitted',
             'submitted_at' => now(),
         ]);
     }
 
-    public function approve(Loan $loan, int $adminId, ?string $note = null): Loan
-    {
+    public function approve(
+        Loan $loan,
+        int $adminId,
+        ?string $note = null
+    ): Loan {
         if (!in_array($loan->status, ['submitted', 'under_review'], true)) {
             throw new RuntimeException('Loan is not in approvable state.');
         }
@@ -42,15 +49,16 @@ class LoanService
         $loan->update([
             'status' => 'approved',
             'approved_at' => now(),
-            'approved_by' => $adminId,
-            'admin_note' => $note,
         ]);
 
         return $loan->refresh();
     }
 
-    public function reject(Loan $loan, int $adminId, string $reason): Loan
-    {
+    public function reject(
+        Loan $loan,
+        int $adminId,
+        string $reason
+    ): Loan {
         if (!in_array($loan->status, ['submitted', 'under_review', 'approved'], true)) {
             throw new RuntimeException('Loan is not in rejectable state.');
         }
@@ -58,7 +66,6 @@ class LoanService
         $loan->update([
             'status' => 'rejected',
             'rejected_at' => now(),
-            'rejected_by' => $adminId,
             'rejection_reason' => $reason,
         ]);
 
@@ -67,49 +74,34 @@ class LoanService
 
     public function fund(Loan $loan, int $actorId): Loan
     {
-        if ($loan->status !== 'approved') {
-            throw new RuntimeException('Only approved loan can be funded.');
-        }
-
         return DB::transaction(function () use ($loan, $actorId) {
-            $loan->refresh();
+            $loan = Loan::query()
+                ->whereKey($loan->id)
+                ->lockForUpdate()
+                ->firstOrFail();
 
             if ($loan->status !== 'approved') {
-                throw new RuntimeException('Loan status changed. Try again.');
+                throw new RuntimeException('Only approved loan can be funded.');
             }
 
-            $fundedAt = Carbon::now();
+            $fundedAt = now();
 
             $loan->update([
                 'status' => 'funded',
                 'funded_at' => $fundedAt,
             ]);
 
-            $schedule = $this->installmentGenerator->generate(
-                principalAmount: (int) $loan->amount,
-                feeAmount: (int) $loan->fee_amount,
-                tenureMonths: (int) $loan->tenure_months,
-                fundedAt: $fundedAt
-            );
-
-            foreach ($schedule as $row) {
-                Installment::create([
-                    'loan_id' => $loan->id,
-                    ...$row,
-                ]);
-            }
-
-            LoanTransaction::create([
-                'loan_id' => $loan->id,
-                'type' => 'fund',
-                'amount' => (int) $loan->amount,
-                'meta' => ['actor_id' => $actorId],
-                'transacted_at' => now(),
+            $loan->transactions()->create([
+                'type' => 'disbursement',
+                'amount' => (int) $loan->principal_amount,
+                'performed_by' => $actorId,
+                'transacted_at' => $fundedAt,
             ]);
 
             return $loan->refresh();
         });
     }
+
 
     protected function assertMvpRules(int $amount, int $tenureMonths): void
     {
