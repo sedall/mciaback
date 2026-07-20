@@ -41,7 +41,7 @@ class LoanApiTest extends TestCase
         $this->withoutMiddleware();
 
         $admin = $this->createUser();
-
+        $admin->assignRole('admin');
         $loan = Loan::query()->create([
             'customer_id' => $this->createUser()->id,
             'principal_amount' => 10_000_000,
@@ -70,7 +70,7 @@ class LoanApiTest extends TestCase
         $this->withoutMiddleware();
 
         $admin = $this->createUser();
-
+        $admin->assignRole('admin');
         $loan = Loan::query()->create([
             'customer_id' => $this->createUser()->id,
             'principal_amount' => 10_000_000,
@@ -104,6 +104,7 @@ class LoanApiTest extends TestCase
         $this->withoutMiddleware();
 
         $admin = $this->createUser();
+        $admin->assignRole('admin');
 
         $loan = Loan::query()->create([
             'customer_id' => $this->createUser()->id,
