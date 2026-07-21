@@ -3,13 +3,20 @@
 namespace Modules\Loans\Tests\Feature;
 
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Modules\Access\Database\Seeders\RoleSeeder;
 use Modules\Loans\Models\Loan;
-use Modules\Loans\Models\LoanTransaction;
 use Tests\TestCase;
 
 class LoanApiTest extends TestCase
 {
     use RefreshDatabase;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        $this->seed(RoleSeeder::class);
+    }
 
     public function test_customer_can_create_loan_request(): void
     {
@@ -42,6 +49,7 @@ class LoanApiTest extends TestCase
 
         $admin = $this->createUser();
         $admin->assignRole('admin');
+
         $loan = Loan::query()->create([
             'customer_id' => $this->createUser()->id,
             'principal_amount' => 10_000_000,
@@ -52,6 +60,11 @@ class LoanApiTest extends TestCase
             'submitted_at' => now(),
         ]);
 
+        $this->assertSame('submitted', $loan->fresh()->status);
+        $this->assertDatabaseHas('loans', [
+            'id' => $loan->id,
+            'status' => 'submitted',
+        ]);
         $response = $this->actingAs($admin, 'sanctum')
             ->patchJson("/api/admin/loans/{$loan->id}/approve");
 
@@ -71,6 +84,7 @@ class LoanApiTest extends TestCase
 
         $admin = $this->createUser();
         $admin->assignRole('admin');
+
         $loan = Loan::query()->create([
             'customer_id' => $this->createUser()->id,
             'principal_amount' => 10_000_000,
@@ -80,8 +94,10 @@ class LoanApiTest extends TestCase
             'status' => 'submitted',
             'submitted_at' => now(),
         ]);
-        $loan->refresh();
-        $this->assertSame('submitted', $loan->status);
+        $this->assertDatabaseHas('loans', [
+            'id' => $loan->id,
+            'status' => 'submitted',
+        ]);
         $response = $this
             ->actingAs($admin, 'sanctum')
             ->patchJson("/api/admin/loans/{$loan->id}/reject", [
@@ -112,14 +128,22 @@ class LoanApiTest extends TestCase
             'fee_amount' => 480_000,
             'total_payable' => 12_480_000,
             'installments_count' => 3,
-            'status' => 'approved',
+            'status' => 'submitted',
             'submitted_at' => now(),
-            'approved_at' => now(),
         ]);
+        $this->assertDatabaseHas('loans', [
+            'id' => $loan->id,
+            'status' => 'submitted',
+        ]);
+        $this->actingAs($admin, 'sanctum')
+            ->patchJson("/api/admin/loans/{$loan->id}/approve")
+            ->assertOk();
 
-        $loan->refresh();
-        $this->assertSame('submitted', $loan->status);
-
+        $this->assertSame('approved', $loan->fresh()->status);
+        $this->assertDatabaseHas('loans', [
+            'id' => $loan->id,
+            'status' => 'approved',
+        ]);
         $response = $this->actingAs($admin, 'sanctum')
             ->patchJson("/api/admin/loans/{$loan->id}/fund");
 
@@ -192,7 +216,6 @@ class LoanApiTest extends TestCase
             ->getJson('/api/customer/loans');
 
         $response->assertOk();
-
         $response->assertJsonCount(1, 'data');
 
         $response->assertJsonFragment([

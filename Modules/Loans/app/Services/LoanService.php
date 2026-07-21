@@ -2,11 +2,8 @@
 
 namespace Modules\Loans\Services;
 
-use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
-use Modules\Loans\Models\Installment;
 use Modules\Loans\Models\Loan;
-use Modules\Loans\Models\LoanTransaction;
 use RuntimeException;
 
 class LoanService
@@ -37,10 +34,8 @@ class LoanService
         ]);
     }
 
-    public function approve(
-        Loan $loan,
-        int $adminId,
-        ?string $note = null
+    public function approveLoan(
+        Loan $loan
     ): Loan {
         if (!in_array($loan->status, ['submitted', 'under_review'], true)) {
             throw new RuntimeException('Loan is not in approvable state.');
@@ -54,9 +49,8 @@ class LoanService
         return $loan->refresh();
     }
 
-    public function reject(
+    public function rejectLoan(
         Loan $loan,
-        int $adminId,
         string $reason
     ): Loan {
         if (!in_array($loan->status, ['submitted', 'under_review', 'approved'], true)) {
@@ -72,8 +66,9 @@ class LoanService
         return $loan->refresh();
     }
 
-    public function fund(Loan $loan, int $actorId): Loan
+    public function fundLoan(Loan $loan, int $actorId): Loan
     {
+
         return DB::transaction(function () use ($loan, $actorId) {
             $loan = Loan::query()
                 ->whereKey($loan->id)
@@ -96,12 +91,21 @@ class LoanService
                 'amount' => (int) $loan->principal_amount,
                 'performed_by' => $actorId,
                 'transacted_at' => $fundedAt,
+                'meta' => null,
             ]);
+
+            $installments = $this->installmentGenerator->generate(
+                principalAmount: (int) $loan->principal_amount,
+                feeAmount: (int) $loan->fee_amount,
+                tenureMonths: (int) $loan->installments_count,
+                fundedAt: $fundedAt,
+            );
+
+            $loan->installments()->createMany($installments);
 
             return $loan->refresh();
         });
     }
-
 
     protected function assertMvpRules(int $amount, int $tenureMonths): void
     {

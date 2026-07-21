@@ -27,4 +27,9 @@ class LoanTransaction extends Model
     {
         return $this->belongsTo(Loan::class);
     }
+
+    public function performer(): BelongsTo
+    {
+        return $this->belongsTo(\App\Models\User::class, 'performed_by');
+    }
 }

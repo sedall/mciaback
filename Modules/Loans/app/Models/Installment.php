@@ -12,6 +12,7 @@ class Installment extends Model
 
     protected $fillable = [
         'loan_id',
+        'paid_at',
         'sequence',
         'principal_amount',
         'fee_amount',

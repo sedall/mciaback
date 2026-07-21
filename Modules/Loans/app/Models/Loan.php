@@ -19,12 +19,9 @@ class Loan extends Model
         'status',
         'submitted_at',
         'approved_at',
-        'funded_at',
-        'started_at',
-        'completed_at',
         'rejected_at',
         'rejection_reason',
-        'meta',
+        'funded_at',
     ];
 
     protected $casts = [
@@ -46,10 +43,7 @@ class Loan extends Model
         return $this->belongsTo(config('auth.providers.users.model'), 'customer_id');
     }
 
-    public function clinic()
-    {
-        return $this->belongsTo(Clinic::class, 'clinic_id');
-    }
+
 
     public function installments()
     {

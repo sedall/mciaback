@@ -5,6 +5,7 @@ namespace Modules\Loans\Http\Controllers;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
+use Modules\Loans\Http\Requests\StoreLoanRequest;
 use Modules\Loans\Models\Loan;
 use Modules\Loans\Services\LoanService;
 
@@ -25,13 +26,9 @@ class LoansController extends Controller
         ]);
     }
 
-    public function store(Request $request): JsonResponse
+    public function store(StoreLoanRequest $request): JsonResponse
     {
-        $validated = $request->validate([
-            'amount' => ['required', 'integer', 'min:10000000', 'max:500000000'],
-            'tenure_months' => ['required', 'integer', 'in:3,6,12'],
-            'purpose' => ['nullable', 'string', 'max:1000'],
-        ]);
+        $validated = $request->validated();
 
         $loan = $this->loanService->createLoan(
             customerId: (int) auth()->id(),
