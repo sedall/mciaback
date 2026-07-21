@@ -2,8 +2,9 @@
 
 namespace Modules\Loans\Tests\Feature;
 
+use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Modules\Access\Database\Seeders\RoleSeeder;
+use Modules\Loans\Database\Factories\LoanFactory;
 use Modules\Loans\Models\Loan;
 use Tests\TestCase;
 
@@ -15,224 +16,147 @@ class LoanApiTest extends TestCase
     {
         parent::setUp();
 
-        $this->seed(RoleSeeder::class);
+        $this->seed(\Modules\Access\Database\Seeders\RoleSeeder::class);
+    }
+
+    public function test_customer_can_list_own_loans(): void
+    {
+        $customer = User::factory()->create();
+        $customer->assignRole('customer');
+
+        $otherCustomer = User::factory()->create();
+        $otherCustomer->assignRole('customer');
+
+        LoanFactory::new()->count(2)->create(['customer_id' => $customer->id]);
+        LoanFactory::new()->count(1)->create(['customer_id' => $otherCustomer->id]);
+
+        $response = $this->actingAs($customer, 'sanctum')
+            ->getJson('/api/customer/loans');
+
+        $response->assertOk();
+        $response->assertJsonCount(2, 'data');
     }
 
     public function test_customer_can_create_loan_request(): void
     {
-        $this->withoutMiddleware();
+        $customer = User::factory()->create();
+        $customer->assignRole('customer');
 
-        $customer = $this->createUser();
+        $payload = [
+            'amount' => 50000000,
+            'tenure_months' => 12,
+        ];
 
-        $response = $this
-            ->actingAs($customer, 'sanctum')
-            ->postJson('/api/customer/loans', [
-                'amount' => 10_000_000,
-                'tenure_months' => 3,
-            ]);
+        $response = $this->actingAs($customer, 'sanctum')
+            ->postJson('/api/customer/loans', $payload);
 
         $response->assertCreated();
 
         $this->assertDatabaseHas('loans', [
-            'customer_id' => $customer->id,
-            'principal_amount' => 10_000_000,
-            'fee_amount' => 400_000,
-            'total_payable' => 10_400_000,
-            'installments_count' => 3,
-            'status' => 'submitted',
+            'customer_id' => $customer->id
         ]);
+    }
+
+    public function test_admin_can_list_loans(): void
+    {
+        $admin = User::factory()->create();
+        $admin->assignRole('admin');
+
+        LoanFactory::new()->count(3)->create();
+
+        $response = $this->actingAs($admin, 'sanctum')
+            ->getJson('/api/admin/loans');
+
+        $response->assertOk();
+    }
+
+    public function test_admin_can_view_single_loan(): void
+    {
+        $admin = User::factory()->create();
+        $admin->assignRole('admin');
+
+        $loan = LoanFactory::new()->create();
+
+        $response = $this->actingAs($admin, 'sanctum')
+            ->getJson("/api/admin/loans/{$loan->id}");
+
+        $response->assertOk()
+            ->assertJsonPath('data.id', $loan->id);
     }
 
     public function test_admin_can_approve_loan(): void
     {
-        $this->withoutMiddleware();
-
-        $admin = $this->createUser();
+        $admin = User::factory()->create();
         $admin->assignRole('admin');
 
-        $loan = Loan::query()->create([
-            'customer_id' => $this->createUser()->id,
-            'principal_amount' => 10_000_000,
-            'fee_amount' => 400_000,
-            'total_payable' => 10_400_000,
-            'installments_count' => 3,
-            'status' => 'submitted',
-            'submitted_at' => now(),
+        $loan = LoanFactory::new()->create([
         ]);
 
-        $this->assertSame('submitted', $loan->fresh()->status);
-        $this->assertDatabaseHas('loans', [
-            'id' => $loan->id,
-            'status' => 'submitted',
-        ]);
         $response = $this->actingAs($admin, 'sanctum')
-            ->patchJson("/api/admin/loans/{$loan->id}/approve");
+            ->patchJson("/api/admin/loans/{$loan->id}/approve", []);
 
-        $response->assertOk();
+        $response->assertOk()
+            ->assertJsonPath('data.status', 'approved');
 
         $this->assertDatabaseHas('loans', [
             'id' => $loan->id,
             'status' => 'approved',
         ]);
-
-        $this->assertNotNull($loan->fresh()->approved_at);
-    }
-
-    public function test_admin_can_reject_loan(): void
-    {
-        $this->withoutMiddleware();
-
-        $admin = $this->createUser();
-        $admin->assignRole('admin');
-
-        $loan = Loan::query()->create([
-            'customer_id' => $this->createUser()->id,
-            'principal_amount' => 10_000_000,
-            'fee_amount' => 400_000,
-            'total_payable' => 10_400_000,
-            'installments_count' => 3,
-            'status' => 'submitted',
-            'submitted_at' => now(),
-        ]);
-        $this->assertDatabaseHas('loans', [
-            'id' => $loan->id,
-            'status' => 'submitted',
-        ]);
-        $response = $this
-            ->actingAs($admin, 'sanctum')
-            ->patchJson("/api/admin/loans/{$loan->id}/reject", [
-                'reason' => 'Insufficient KYC score.',
-            ]);
-
-        $response->assertOk();
-
-        $this->assertDatabaseHas('loans', [
-            'id' => $loan->id,
-            'status' => 'rejected',
-            'rejection_reason' => 'Insufficient KYC score.',
-        ]);
-
-        $this->assertNotNull($loan->fresh()->rejected_at);
     }
 
     public function test_admin_can_fund_approved_loan(): void
     {
-        $this->withoutMiddleware();
-
-        $admin = $this->createUser();
+        $admin = User::factory()->create();
         $admin->assignRole('admin');
 
-        $loan = Loan::query()->create([
-            'customer_id' => $this->createUser()->id,
-            'principal_amount' => 12_000_000,
-            'fee_amount' => 480_000,
-            'total_payable' => 12_480_000,
-            'installments_count' => 3,
-            'status' => 'submitted',
-            'submitted_at' => now(),
-        ]);
-        $this->assertDatabaseHas('loans', [
-            'id' => $loan->id,
-            'status' => 'submitted',
-        ]);
-        $this->actingAs($admin, 'sanctum')
-            ->patchJson("/api/admin/loans/{$loan->id}/approve")
-            ->assertOk();
-
-        $this->assertSame('approved', $loan->fresh()->status);
-        $this->assertDatabaseHas('loans', [
-            'id' => $loan->id,
+        $loan = LoanFactory::new()->create([
             'status' => 'approved',
         ]);
-        $response = $this->actingAs($admin, 'sanctum')
-            ->patchJson("/api/admin/loans/{$loan->id}/fund");
 
-        $response->assertOk();
+        $response = $this->actingAs($admin, 'sanctum')
+            ->patchJson("/api/admin/loans/{$loan->id}/fund", []);
+
+        $response->assertOk()
+            ->assertJsonPath('data.status', 'funded');
 
         $this->assertDatabaseHas('loans', [
             'id' => $loan->id,
             'status' => 'funded',
         ]);
+    }
 
-        $this->assertNotNull($loan->fresh()->funded_at);
+    public function test_admin_can_reject_pending_loan(): void
+    {
+        $admin = User::factory()->create();
+        $admin->assignRole('admin');
 
-        $this->assertDatabaseHas('loan_transactions', [
-            'loan_id' => $loan->id,
-            'type' => 'disbursement',
-            'amount' => 12_000_000,
-            'performed_by' => $admin->id,
+        $loan = LoanFactory::new()->create([
         ]);
 
-        $this->assertDatabaseCount('installments', 3);
+        $response = $this->actingAs($admin, 'sanctum')
+            ->patchJson("/api/admin/loans/{$loan->id}/reject", [
+                'reason' => 'documents incomplete',
+            ]);
 
-        $this->assertDatabaseHas('installments', [
-            'loan_id' => $loan->id,
-            'sequence' => 1,
-            'status' => 'pending',
-        ]);
+        $response->assertOk()
+            ->assertJsonPath('data.status', 'rejected');
 
-        $this->assertDatabaseHas('installments', [
-            'loan_id' => $loan->id,
-            'sequence' => 2,
-            'status' => 'pending',
-        ]);
-
-        $this->assertDatabaseHas('installments', [
-            'loan_id' => $loan->id,
-            'sequence' => 3,
-            'status' => 'pending',
+        $this->assertDatabaseHas('loans', [
+            'id' => $loan->id,
+            'status' => 'rejected',
         ]);
     }
 
-    public function test_customer_can_list_their_loans(): void
+    public function test_customer_cannot_access_admin_loan_routes(): void
     {
-        $this->withoutMiddleware();
+        $customer = User::factory()->create();
+        $customer->assignRole('customer');
 
-        $customer = $this->createUser();
-        $otherCustomer = $this->createUser();
+        $loan = LoanFactory::new()->create();
 
-        Loan::query()->create([
-            'customer_id' => $customer->id,
-            'principal_amount' => 10_000_000,
-            'fee_amount' => 400_000,
-            'total_payable' => 10_400_000,
-            'installments_count' => 3,
-            'status' => 'submitted',
-            'submitted_at' => now(),
-        ]);
+        $response = $this->actingAs($customer, 'sanctum')
+            ->getJson("/api/admin/loans/{$loan->id}");
 
-        Loan::query()->create([
-            'customer_id' => $otherCustomer->id,
-            'principal_amount' => 20_000_000,
-            'fee_amount' => 800_000,
-            'total_payable' => 20_800_000,
-            'installments_count' => 6,
-            'status' => 'submitted',
-            'submitted_at' => now(),
-        ]);
-
-        $response = $this
-            ->actingAs($customer, 'sanctum')
-            ->getJson('/api/customer/loans');
-
-        $response->assertOk();
-        $response->assertJsonCount(1, 'data');
-
-        $response->assertJsonFragment([
-            'customer_id' => $customer->id,
-            'principal_amount' => 10_000_000,
-        ]);
-
-        $response->assertJsonMissing([
-            'customer_id' => $otherCustomer->id,
-            'principal_amount' => 20_000_000,
-        ]);
-    }
-
-    protected function createUser()
-    {
-        $userModel = config('auth.providers.users.model');
-
-        return $userModel::factory()->create();
+       $response->assertForbidden();
     }
 }

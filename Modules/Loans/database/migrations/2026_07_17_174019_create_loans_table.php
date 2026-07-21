@@ -21,7 +21,7 @@ return new class extends Migration
             $table->unsignedBigInteger('total_payable');      // اصل + کارمزد
 
             $table->unsignedTinyInteger('installments_count'); // 3,6,12
-            $table->string('status')->index(); // draft,submitted,under_review,approved,rejected,funded,active,completed,defaulted
+            $table->string('status')->index()->default('pending'); // draft,submitted,under_review,approved,rejected,funded,active,completed,defaulted
             $table->timestamp('submitted_at')->nullable();
             $table->timestamp('approved_at')->nullable();
             $table->timestamp('funded_at')->nullable();
