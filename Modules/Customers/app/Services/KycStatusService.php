@@ -4,8 +4,8 @@ namespace Modules\Customers\Services;
 
 use App\Models\User;
 use Modules\CustomerDocuments\Models\CustomerDocument;
-use Modules\Customers\Http\Resources\CustomerProfileResource;
 use Modules\Customers\Models\CustomerProfile;
+use Modules\Customers\Http\Resources\CustomerProfileResource;
 
 class KycStatusService
 {
@@ -37,10 +37,6 @@ class KycStatusService
 
     protected function getProfile(User $user): ?CustomerProfile
     {
-        if ($user->relationLoaded('customerProfile')) {
-            return $user->customerProfile;
-        }
-
         return $user->customerProfile()->first();
     }
 
@@ -72,7 +68,7 @@ class KycStatusService
         return true;
     }
 
-    protected function getKycStatus(User $user): string
+    public function getKycStatus(User $user): string
     {
         $profileCompleted = $this->isProfileCompleted($this->getProfile($user));
         $documents = $this->getDocumentsCollection($user);
@@ -111,32 +107,20 @@ class KycStatusService
             'approved' => $documents->where('status', 'approved')->count(),
             'pending' => $documents->where('status', 'pending')->count(),
             'rejected' => $documents->where('status', 'rejected')->count(),
-            'items' => $documents->map(function (CustomerDocument $document) {
-                return [
-                    'id' => $document->id,
-                    'type' => $document->type,
-                    'status' => $document->status,
-                    'rejection_reason' => $document->rejection_reason,
-                    'file_url' => $document->file_path ? asset('storage/' . $document->file_path) : null,
-                    'submitted_at' => optional($document->created_at)?->toISOString(),
-                    'reviewed_at' => optional($document->reviewed_at)?->toISOString(),
-                ];
-            })->values()->all(),
+            'items' => $documents->map(fn ($document) => [
+                'id' => $document->id,
+                'type' => $document->type,
+                'status' => $document->status,
+                'rejection_reason' => $document->rejection_reason,
+                'file_url' => $document->file_url,
+            ])->values()->all(),
         ];
     }
 
     protected function getDocumentsCollection(User $user)
     {
-        if (method_exists($user, 'customerDocuments')) {
-            if ($user->relationLoaded('customerDocuments')) {
-                return $user->customerDocuments;
-            }
-
-            return $user->customerDocuments()->get();
-        }
-
         return CustomerDocument::query()
-            ->where('user_id', $user->id)
+            ->where('customer_id', $user->id)
             ->get();
     }
 }
