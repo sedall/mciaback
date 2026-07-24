@@ -37,14 +37,16 @@ class User extends Authenticatable
             'password' => 'hashed',
         ];
     }
-
+    public function profile()
+    {
+        return $this->customerProfile();
+    }
     public function customerProfile(): HasOne
     {
         return $this->hasOne(CustomerProfile::class);
     }
-
-    public function customerDocuments(): HasMany
+    public function documents(): HasMany
     {
-        return $this->hasMany(CustomerDocument::class);
+        return $this->hasMany(CustomerDocument::class, 'user_id', 'user_id');
     }
 }

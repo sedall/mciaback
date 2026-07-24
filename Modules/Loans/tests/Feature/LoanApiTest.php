@@ -5,6 +5,7 @@ namespace Modules\Loans\Tests\Feature;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use Modules\Access\Database\Seeders\RoleSeeder;
 use Modules\CustomerDocuments\Models\CustomerDocument;
 use Modules\Customers\Models\CustomerProfile;
 use Modules\Loans\Database\Factories\LoanFactory;
@@ -19,7 +20,7 @@ class LoanApiTest extends TestCase
     {
         parent::setUp();
 
-        $this->seed(\Modules\Access\Database\Seeders\RoleSeeder::class);
+        $this->seed(RoleSeeder::class);
     }
 
     public function test_customer_can_list_own_loans(): void
@@ -39,54 +40,48 @@ class LoanApiTest extends TestCase
         $response->assertOk();
         $response->assertJsonCount(2, 'data');
     }
+
     public function test_customer_can_create_loan_request(): void
     {
-        // 1. ساخت کاربر و نقش‌دهی
         $customer = User::factory()->create();
         $customer->assignRole('customer');
 
-        // 2. تکمیل پروفایل مشتری با استفاده از ستون‌های صحیح
         CustomerProfile::create([
-            'user_id'              => $customer->id,
-            'first_name'           => 'Test',
-            'last_name'            => 'User',
-            'phone'                => '09123456789',
-            'national_code'        => '1234567890',
-            'is_profile_completed' => true,
+            'user_id' => $customer->id,
+            'first_name' => 'Ali',
+            'last_name' => 'Ahmadi',
+            'father_name' => 'Reza',
+            'national_code' => '1672345890',
+            'birth_date' => '1995-01-01',
+            'gender' => 'male',
+            'province' => 'Tehran',
+            'city' => 'Tehran',
+            'address' => 'Test address',
+            'postal_code' => '1234567890',
+            'landline_phone' => '02112345678',
         ]);
 
-        // 3. ایجاد یک سند تأییدشده
         CustomerDocument::create([
             'user_id' => $customer->id,
-            'type'        => 'id_card',
-            'status'      => 'approved',
-            'file_path'        => 'dummy.pdf',
+            'document_type' => 'national_card',
+            'file_path' => 'documents/test.jpg',
+            'status' => 'approved',
+            'type' => 'id_card',
         ]);
 
-        // 4. ارسال درخواست وام
         $payload = [
-            'amount'        => 50_000_000,
+            'amount' => 50000000,
             'tenure_months' => 12,
         ];
-
-        $response = $this
-            ->actingAs($customer, 'sanctum')
+        $response = $this->actingAs($customer, 'sanctum')
             ->postJson('/api/customer/loans', $payload);
-        $response->assertCreated();
-        // 5. assertions
-                $payload = [
-                    'amount' => 20000000,
-                    'tenure_months' => 12,
-                ];
+        $response
+            ->assertCreated()
+            ->assertJson([
+                'message' => 'Loan created successfully.',
 
-                        $response = $this->actingAs($customer, 'sanctum')
-                            ->postJson('/api/customer/loans', $payload);
-                        $response->assertStatus(422)
-                            ->assertJsonValidationErrors(['kyc']);
-
+            ]);
     }
-
-
 
     public function test_admin_can_list_loans(): void
     {

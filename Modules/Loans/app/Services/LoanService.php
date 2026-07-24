@@ -141,7 +141,7 @@ class LoanService
         $kycStatus = $this->kycStatusService->getKycStatus($user);
         if ($kycStatus !== 'approved') {
             throw ValidationException::withMessages([
-                'kyc' => ['KYC is not approved. Current status: ' . $kycStatus],
+                'kyc' => ['KYC is not approved. Current status:' . $kycStatus],
             ]);
         }
     }

@@ -120,7 +120,7 @@ class KycStatusService
     protected function getDocumentsCollection(User $user)
     {
         return CustomerDocument::query()
-            ->where('customer_id', $user->id)
+            ->where('user_id', $user->id)
             ->get();
     }
 }
