@@ -4,7 +4,7 @@
     git commit -m "update project"
     git push origin main
 </pre>
-<h2>Update to Desktup : </h2>
+<h2>Update to Desktop : </h2>
 <pre>
     git clone https://github.com/sedall/mciaback.git
     git pull origin main
