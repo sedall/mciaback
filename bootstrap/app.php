@@ -4,6 +4,7 @@ use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Request;
+use Modules\Access\Http\Middleware\EnsurePanelAccess;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -13,7 +14,7 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->alias([
-            'panel.access' => \Modules\Access\Http\Middleware\EnsurePanelAccess::class,
+            'panel.access' => EnsurePanelAccess::class,
         ]);
 
         $middleware->redirectGuestsTo(fn () => null);

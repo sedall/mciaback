@@ -13,20 +13,15 @@ class EnsurePanelAccess
         $user = $request->user();
 
         if (! $user) {
-            abort(401, 'Unauthenticated.');
+            return response()->json(['message' => 'Unauthenticated.'], 401);
         }
 
-        $allowed = match ($panel) {
-            'customer' => $user->hasRole('customer'),
-            'clinic' => $user->hasRole('clinic'),
-            'admin' => $user->hasAnyRole(['admin', 'expert']),
-            default => false,
-        };
-
-        if (! $allowed) {
-            abort(403, 'شما به این پنل دسترسی ندارید.');
+        // اگر از spatie استفاده می‌کنی:
+        if (! method_exists($user, 'hasRole') || ! $user->hasRole($panel)) {
+            return response()->json(['message' => 'Forbidden panel access.'], 403);
         }
 
         return $next($request);
     }
 }
+

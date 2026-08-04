@@ -9,7 +9,7 @@ use Modules\Access\Database\Seeders\RoleSeeder;
 use Modules\CustomerDocuments\Models\CustomerDocument;
 use Modules\Customers\Models\CustomerProfile;
 use Modules\Loans\Database\Factories\LoanFactory;
-use Modules\Loans\Models\Loan;
+use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
 
 class LoanApiTest extends TestCase
@@ -246,4 +246,15 @@ class LoanApiTest extends TestCase
         $response->assertStatus(422)
             ->assertJsonValidationErrors(['kyc']);
     }
+
+    public function test_clinic_cannot_access_customer_loan_routes(): void
+    {
+        $clinic = User::factory()->create();
+        $clinic->assignRole('clinic');
+
+        Sanctum::actingAs($clinic);
+
+        $this->getJson('/api/customer/loans')->assertForbidden();
+    }
+
 }

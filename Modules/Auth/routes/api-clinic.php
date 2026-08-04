@@ -10,5 +10,6 @@ Route::prefix('clinic')->group(function () {
 
     Route::middleware(['auth:sanctum', 'panel.access:clinic'])->group(function () {
         Route::get('/me', [MeController::class, 'show'])->name('auth.clinic.me');
+        Route::post('/auth/logout', [AuthController::class, 'logout']);
     });
 });

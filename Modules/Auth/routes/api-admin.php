@@ -10,5 +10,6 @@ Route::prefix('admin')->group(function () {
 
     Route::middleware(['auth:sanctum', 'panel.access:admin'])->group(function () {
         Route::get('/me', [MeController::class, 'show'])->name('auth.admin.me');
+        Route::post('/auth/logout', [AuthController::class, 'logout']);
     });
 });
