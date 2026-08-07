@@ -14,7 +14,23 @@ class FundLoanRequest extends FormRequest
     public function rules(): array
     {
         return [
-            // فعلاً MVP ورودی خاصی ندارد
+            'amount' => [
+                'sometimes',
+                'nullable',
+                'numeric',
+                'min:1',
+            ],
+            'date' => [
+                'sometimes',
+                'nullable',
+                'date',
+            ],
+            'reference' => [
+                'sometimes',
+                'nullable',
+                'string',
+                'max:255',
+            ],
         ];
     }
 }

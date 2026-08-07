@@ -5,6 +5,7 @@ namespace Modules\Loans\Http\Controllers;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Validation\ValidationException;
 use Modules\Loans\Http\Requests\ApproveLoanRequest;
 use Modules\Loans\Http\Requests\FundLoanRequest;
 use Modules\Loans\Http\Requests\RejectLoanRequest;
@@ -41,45 +42,34 @@ class AdminLoansController extends Controller
         ]);
     }
 
+    /**
+     * @throws ValidationException
+     */
     public function approve(ApproveLoanRequest $request, Loan $loan): JsonResponse
     {
-
         $loan = $this->loanService->approveLoan(
             $loan,
-            $request->get('term'),
-            auth()->id()
+            $request->input('admin_note')
         );
-        return response()->json([
-            'message' => 'Loan has been approved successfully',
-            'data' => $loan,
-        ]);
 
+        return response()->json([ 'data' => $loan->fresh()]);
     }
 
     public function fund(FundLoanRequest $request, Loan $loan): JsonResponse
     {
-
         $loan = $this->loanService->fundLoan(
             $loan,
-            auth()->id(),
+            $request->only(['amount', 'date', 'reference'])
         );
 
-        return response()->json([
-            'message' => 'Loan funded successfully.',
-            'data' => $loan,
-        ]);
+        return response()->json([ 'data' => $loan->fresh()]);
     }
 
     public function reject(RejectLoanRequest $request, Loan $loan): JsonResponse
     {
-        $loan = $this->loanService->rejectLoan(
-            $loan,
-            $request->get('reason')
-        );
+        $reason = $request->input('reason', $request->input('admin_note'));
+        $loan = $this->loanService->rejectLoan($loan, $reason);
 
-        return response()->json([
-            'message' => 'Loan rejected successfully.',
-            'data' => $loan,
-        ]);
+        return response()->json([ 'data' => $loan->fresh()]);
     }
 }

@@ -14,7 +14,8 @@ class RejectLoanRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'reason' => ['required', 'string', 'max:2000'],
+            'admin_note' => ['required_without:reason', 'string', 'max:2000'],
+            'reason' => ['required_without:admin_note', 'string', 'max:2000'],
         ];
     }
 }

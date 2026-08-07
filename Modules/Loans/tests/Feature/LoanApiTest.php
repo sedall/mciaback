@@ -70,7 +70,6 @@ class LoanApiTest extends TestCase
         $response->assertCreated();
     }
 
-
     public function test_admin_can_list_loans(): void
     {
         $admin = User::factory()->create();
@@ -103,10 +102,14 @@ class LoanApiTest extends TestCase
         $admin = User::factory()->create();
         $admin->assignRole('admin');
 
-        $loan = LoanFactory::new()->create([]);
+        $loan = LoanFactory::new()->create([
+            'status' => 'submitted',
+        ]);
 
         $response = $this->actingAs($admin, 'sanctum')
-            ->patchJson("/api/admin/loans/{$loan->id}/approve", []);
+            ->patchJson("/api/admin/loans/{$loan->id}/approve", [
+                'admin_note' => 'approved after review',
+            ]);
 
         $response->assertOk()
             ->assertJsonPath('data.status', 'approved');
@@ -143,11 +146,13 @@ class LoanApiTest extends TestCase
         $admin = User::factory()->create();
         $admin->assignRole('admin');
 
-        $loan = LoanFactory::new()->create([]);
+        $loan = LoanFactory::new()->create([
+            'status' => 'submitted',
+        ]);
 
         $response = $this->actingAs($admin, 'sanctum')
             ->patchJson("/api/admin/loans/{$loan->id}/reject", [
-                'reason' => 'documents incomplete',
+                'admin_note' => 'documents incomplete',
             ]);
 
         $response->assertOk()
@@ -263,7 +268,6 @@ class LoanApiTest extends TestCase
             'address' => 'Sample Address',
             'postal_code' => '1234567890',
         ]);
-
         foreach ([
                      'national_card_front',
                      'national_card_back',
@@ -282,7 +286,6 @@ class LoanApiTest extends TestCase
             'amount' => 10000000,
             'tenure_months' => 12,
         ]);
-
         $response->assertCreated();
     }
 
@@ -322,6 +325,5 @@ class LoanApiTest extends TestCase
             'customer_id' => $customer->id,
         ]);
     }
-
 
 }
