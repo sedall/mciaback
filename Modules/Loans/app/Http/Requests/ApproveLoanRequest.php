@@ -14,7 +14,30 @@ class ApproveLoanRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'admin_note' => ['nullable', 'string', 'max:2000'],
+            'approved_amount' => [
+                'sometimes',
+                'nullable',
+                'numeric',
+                'min:1',
+            ],
+            'approved_term_months' => [
+                'sometimes',
+                'nullable',
+                'integer',
+                'min:1',
+            ],
+            'approved_installment_amount' => [
+                'sometimes',
+                'nullable',
+                'numeric',
+                'min:1',
+            ],
+            'admin_note' => [
+                'sometimes',
+                'nullable',
+                'string',
+                'max:1000',
+            ],
         ];
     }
 }
