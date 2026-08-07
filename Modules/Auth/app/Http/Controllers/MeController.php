@@ -23,8 +23,7 @@ class MeController extends Controller
     {
         $user = $request->user()->load([
             'roles',
-            'customerProfile',
-            'customerDocuments',
+            'customerProfile'
         ]);
 
         return response()->json([

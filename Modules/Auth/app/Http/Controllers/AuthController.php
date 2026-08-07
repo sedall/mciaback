@@ -74,9 +74,12 @@ class AuthController extends Controller
 
         return response()->json([
             'message' => 'OTP verified successfully.',
-            'token' => $token,
-            'user' => new PanelUserResource($user->loadMissing('roles')),
+            'data' => [
+                'token' => $token,
+                'user' => new PanelUserResource($user->loadMissing('roles')),
+            ],
         ]);
+
     }
 
     protected function resolveEntryPointFromRequest(Request $request): string
