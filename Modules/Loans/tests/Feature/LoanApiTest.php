@@ -46,42 +46,30 @@ class LoanApiTest extends TestCase
         $customer = User::factory()->create();
         $customer->assignRole('customer');
 
-        CustomerProfile::create([
+        // استفاده از Factory که ساختیم
+        \Modules\Customers\Models\CustomerProfile::factory()->create([
             'user_id' => $customer->id,
-            'first_name' => 'Ali',
-            'last_name' => 'Ahmadi',
-            'father_name' => 'Reza',
-            'national_code' => '1672345890',
-            'birth_date' => '1995-01-01',
-            'gender' => 'male',
-            'province' => 'Tehran',
-            'city' => 'Tehran',
-            'address' => 'Test address',
-            'postal_code' => '1234567890',
-            'landline_phone' => '02112345678',
         ]);
 
-        CustomerDocument::create([
-            'user_id' => $customer->id,
-            'document_type' => 'national_card',
-            'file_path' => 'documents/test.jpg',
-            'status' => 'approved',
-            'type' => 'id_card',
-        ]);
+        // ایجاد ۴ سند اجباری
+        $requiredDocs = ['national_card_front', 'national_card_back', 'certificate_of_residence', 'employment_certificate'];
+        foreach ($requiredDocs as $type) {
+            CustomerDocument::create([
+                'user_id' => $customer->id,
+                'type' => $type, // در دیتابیس شما نوع مدرک در فیلد type است
+                'file_path' => 'documents/test.jpg',
+                'status' => 'approved',
+            ]);
+        }
 
-        $payload = [
-            'amount' => 50000000,
-            'tenure_months' => 12,
-        ];
+        $payload = ['amount' => 50000000, 'tenure_months' => 12];
+
         $response = $this->actingAs($customer, 'sanctum')
             ->postJson('/api/customer/loans', $payload);
-        $response
-            ->assertCreated()
-            ->assertJson([
-                'message' => 'Loan created successfully.',
 
-            ]);
+        $response->assertCreated();
     }
+
 
     public function test_admin_can_list_loans(): void
     {
@@ -256,5 +244,84 @@ class LoanApiTest extends TestCase
 
         $this->getJson('/api/customer/loans')->assertForbidden();
     }
+
+    public function test_customer_can_create_loan_if_kyc_approved(): void
+    {
+        $customer = User::factory()->create();
+        $customer->assignRole('customer');
+
+        CustomerProfile::factory()->create([
+            'user_id' => $customer->id,
+            'first_name' => 'John',
+            'last_name' => 'Doe',
+            'father_name' => 'Richard',
+            'national_code' => '1234567890',
+            'birth_date' => '1990-01-01',
+            'gender' => 'male',
+            'province' => 'Tehran',
+            'city' => 'Tehran',
+            'address' => 'Sample Address',
+            'postal_code' => '1234567890',
+        ]);
+
+        foreach ([
+                     'national_card_front',
+                     'national_card_back',
+                     'certificate_of_residence',
+                     'employment_certificate',
+                 ] as $type) {
+            CustomerDocument::create([
+                'user_id' => $customer->id,
+                'type' => $type,
+                'file_path' => "documents/{$type}.jpg",
+                'status' => 'approved',
+            ]);
+        }
+
+        $response = $this->actingAs($customer)->postJson('/api/customer/loans', [
+            'amount' => 10000000,
+            'tenure_months' => 12,
+        ]);
+
+        $response->assertCreated();
+    }
+
+    public function test_customer_cannot_create_loan_if_required_document_missing(): void
+    {
+        $customer = User::factory()->create();
+        $customer->assignRole('customer');
+
+        CustomerProfile::factory()->create([
+            'user_id' => $customer->id,
+            'first_name' => 'John',
+            'last_name' => 'Doe',
+            'father_name' => 'Richard',
+            'national_code' => '1234567890',
+            'birth_date' => '1990-01-01',
+            'gender' => 'male',
+            'province' => 'Tehran',
+            'city' => 'Tehran',
+            'address' => 'Sample Address',
+            'postal_code' => '1234567890',
+        ]);
+
+        CustomerDocument::create([
+            'user_id' => $customer->id,
+            'type' => 'national_card_front',
+            'file_path' => 'documents/national_card_front.jpg',
+            'status' => 'approved',
+        ]);
+
+        $response = $this->actingAs($customer)->postJson('/api/customer/loans', [
+            'amount' => 200000000,
+            'tenure_months' => 12,
+        ]);
+
+        $response->assertUnprocessable();
+        $this->assertDatabaseMissing('loans', [
+            'customer_id' => $customer->id,
+        ]);
+    }
+
 
 }

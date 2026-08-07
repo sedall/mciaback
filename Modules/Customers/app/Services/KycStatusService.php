@@ -9,6 +9,13 @@ use Modules\Customers\Http\Resources\CustomerProfileResource;
 
 class KycStatusService
 {
+    protected const REQUIRED_DOCUMENTS = [
+        'national_card_front',
+        'national_card_back',
+        'certificate_of_residence',
+        'employment_certificate'
+    ];
+
     public function getAccountSnapshot(User $user): array
     {
         $profile = $this->getProfile($user);
@@ -68,35 +75,37 @@ class KycStatusService
         return true;
     }
 
+
     public function getKycStatus(User $user): string
     {
-        $profileCompleted = $this->isProfileCompleted($this->getProfile($user));
-        $documents = $this->getDocumentsCollection($user);
-
-        if (! $profileCompleted) {
+        $profile = $this->getProfile($user);
+        if (!$this->isProfileCompleted($profile)) {
             return 'profile_incomplete';
         }
 
-        if ($documents->isEmpty()) {
-            return 'documents_missing';
-        }
+        $documents = $this->getDocumentsCollection($user);
 
-        $statuses = $documents->pluck('status')->filter();
-
-        if ($statuses->contains('rejected')) {
+        // ۱. بررسی رد شدن حتی یک سند
+        if ($documents->contains('status', 'rejected')) {
             return 'rejected';
         }
 
-        if ($statuses->isNotEmpty() && $statuses->every(fn ($status) => $status === 'approved')) {
-            return 'approved';
+        // ۲. بررسی وجود و تأیید ۴ سند اجباری
+        $approvedTypes = $documents->where('status', 'approved')->pluck('type')->toArray();
+
+        foreach (self::REQUIRED_DOCUMENTS as $requiredType) {
+            if (!in_array($requiredType, $approvedTypes)) {
+                // اگر مدرک موجود باشد ولی در انتظار تایید باشد، وضعیت 'pending_review' است
+                if ($documents->where('type', $requiredType)->contains('status', 'pending')) {
+                    return 'pending_review';
+                }
+                return 'documents_missing'; // یکی از مدارک الزامی کلاً وجود ندارد یا تأیید نشده
+            }
         }
 
-        if ($statuses->contains('pending')) {
-            return 'pending_review';
-        }
-
-        return 'under_review';
+        return 'approved';
     }
+
 
     protected function getDocumentsSummary(User $user): array
     {

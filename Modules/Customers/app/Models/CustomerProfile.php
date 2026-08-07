@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Modules\CustomerDocuments\Models\CustomerDocument;
+use Modules\Customers\Database\Factories\CustomerProfileFactory;
 
 class CustomerProfile extends Model
 {
@@ -31,6 +32,10 @@ class CustomerProfile extends Model
     protected $casts = [
         'birth_date' => 'date',
     ];
+    protected static function newFactory(): CustomerProfileFactory
+    {
+        return CustomerProfileFactory::new();
+    }
 
     public function user(): BelongsTo
     {

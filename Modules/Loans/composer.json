@@ -19,6 +19,7 @@
         "psr-4": {
             "Modules\\Loans\\": "app/",
             "Modules\\Loans\\Database\\Factories\\": "database/factories/",
+            "Modules\\Customers\\Database\\Factories\\": "database/factories/",
             "Modules\\Loans\\Database\\Seeders\\": "database/seeders/"
         }
     },
