@@ -21,11 +21,13 @@ class Installment extends Model
     }
     protected $fillable = [
         'loan_id',
-        'installment_number',
-        'due_date',
-        'amount',
+        'sequence',
+        'principal_amount',
+        'fee_amount',
         'paid_amount',
+        'late_fee_amount',
         'status',
+        'due_date',
         'paid_at',
     ];
 

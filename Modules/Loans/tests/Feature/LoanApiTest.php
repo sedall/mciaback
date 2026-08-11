@@ -491,9 +491,11 @@ class LoanApiTest extends TestCase
             'amount' => 1100000,
         ]);
     }
+
     public function test_loan_becomes_completed_when_all_installments_are_paid(): void
     {
         $user = User::factory()->create();
+        $user->assignRole('customer');
 
         $loan = Loan::factory()->create([
             'customer_id' => $user->id,

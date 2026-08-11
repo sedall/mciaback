@@ -154,7 +154,7 @@ class LoanService
                     'fee_amount' => $item['fee_amount'] ?? 0,
                     'late_fee_amount' => $item['late_fee_amount'] ?? 0,
                     'paid_amount' => 0,
-                    'status' => 'pending',
+                    'status' => Loan::STATUS_PENDING,
                 ]);
             }
 

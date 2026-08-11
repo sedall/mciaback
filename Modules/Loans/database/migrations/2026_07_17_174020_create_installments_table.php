@@ -22,7 +22,6 @@ return new class extends Migration
             $table->unsignedBigInteger('paid_amount')->default(0);
             $table->timestamp('paid_at')->nullable();
             $table->string('status')->index(); // pending,paid,overdue,waived
-
             $table->timestamps();
 
             $table->unique(['loan_id', 'sequence']);
