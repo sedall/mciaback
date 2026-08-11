@@ -9,6 +9,6 @@ Route::middleware(['auth:sanctum', 'panel.access:customer'])
         Route::get('loans', [LoansController::class, 'index']);
         Route::post('loans', [LoansController::class, 'store']);
         Route::get('loans/{loan}/installments', [LoansController::class, 'installments']);
-
+        Route::post('/loans/{loan}/installments/{installment}/repay', [LoansController::class, 'repay']);
     });
 

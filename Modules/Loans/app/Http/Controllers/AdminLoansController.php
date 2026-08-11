@@ -5,11 +5,13 @@ namespace Modules\Loans\Http\Controllers;
 use Modules\Loans\Models\Loan;
 use Illuminate\Http\JsonResponse;
 use App\Http\Controllers\Controller;
+use Modules\Loans\Models\Installment;
 use Modules\Loans\Services\LoanService;
 use Illuminate\Validation\ValidationException;
 use Modules\Loans\Http\Requests\FundLoanRequest;
 use Modules\Loans\Http\Requests\RejectLoanRequest;
 use Modules\Loans\Http\Requests\ApproveLoanRequest;
+use Modules\Loans\Http\Requests\RepayInstallmentRequest;
 
 class AdminLoansController extends Controller
 {
@@ -74,6 +76,19 @@ class AdminLoansController extends Controller
 
         return response()->json([
             'message' => 'Loan rejected successfully.',
+            'data' => $loan,
+        ]);
+    }
+
+    public function repay(RepayInstallmentRequest $request, Loan $loan, Installment $installment) {
+        $validated = $request->validated();
+        $loan = $this->loanService->repayInstallment(
+            $loan,
+            (int) $installment->id,
+            (int) $validated['amount'],
+            $validated['reference'] ?? null
+        );
+        return response()->json([
             'data' => $loan,
         ]);
     }

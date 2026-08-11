@@ -1,14 +1,18 @@
-{
-    "name": "Loans",
-    "alias": "loans",
-    "description": "Loan management module",
-    "keywords": [],
-    "priority": 0,
-    "providers": [
-        "Modules\\Loans\\Providers\\LoansServiceProvider",
-        "Modules\\Loans\\Providers\\RouteServiceProvider",
-        "Modules\\Loans\\Providers\\EventServiceProvider"
-    ],
-    "files": [],
-    "requires": []
-}
+   {
+     "name": "Loans",
+     "alias": "loans",
+     "description": "",
+     "keywords": [],
+     "priority": 0,
+     "providers": [
+       "Modules\\Loans\\Providers\\LoansServiceProvider",
+       "Modules\\Loans\\Providers\\RouteServiceProvider",
+       "Modules\\Loans\\Providers\\EventServiceProvider"
+     ],
+     "files": [
+       "routes/api.php",
+       "routes/api-admin.php",
+       "routes/web.php",
+       "config/config.php"
+     ]
+   }

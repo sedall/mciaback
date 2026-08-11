@@ -1,14 +1,18 @@
 <?php
-
 namespace Modules\Loans\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Factories\Factory;
+use Modules\Loans\Database\Factories\LoanFactory;
 
 class Loan extends Model
 {
     use HasFactory;
-
+    protected static function newFactory(): Factory
+    {
+        return LoanFactory::new();
+    }
     public const STATUS_PENDING = 'pending';
     public const STATUS_DRAFT = 'draft';
     public const STATUS_SUBMITTED = 'submitted';
@@ -17,23 +21,25 @@ class Loan extends Model
     public const STATUS_REJECTED = 'rejected';
     public const STATUS_FUNDED = 'funded';
     public const STATUS_ACTIVE = 'active';
+    public const STATUS_CLOSED = 'closed';
     public const STATUS_COMPLETED = 'completed';
     public const STATUS_DEFAULTED = 'defaulted';
 
     protected $fillable = [
         'customer_id',
-        'clinic_id',
         'principal_amount',
-        'admin_note',
         'fee_amount',
         'total_payable',
         'installments_count',
         'status',
+        'admin_note',
         'submitted_at',
         'approved_at',
-        'rejected_at',
+        'approved_amount',
+        'approved_term_months',
         'funded_at',
-        'rejection_reason',
+        'started_at',
+        'completed_at',
     ];
 
     protected $casts = [

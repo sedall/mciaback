@@ -21,8 +21,11 @@ class InstallmentGenerator
         $items = [];
 
         for ($i = 1; $i <= $tenureMonths; $i++) {
-            $principalPart = $principalBase + ($i === $tenureMonths ? $principalRemainder : 0);
-            $feePart = $feeBase + ($i === $tenureMonths ? $feeRemainder : 0);
+            $principalPart = $principalBase
+                + ($i === $tenureMonths ? $principalRemainder : 0);
+
+            $feePart = $feeBase
+                + ($i === $tenureMonths ? $feeRemainder : 0);
 
             $dueDate = $fundedAt->copy()
                 ->addDays(30)

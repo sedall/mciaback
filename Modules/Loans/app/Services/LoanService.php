@@ -7,6 +7,7 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use Modules\Customers\Services\KycStatusService;
+use Modules\Loans\Models\Installment;
 use Modules\Loans\Models\Loan;
 
 class LoanService
@@ -178,6 +179,7 @@ class LoanService
         });
     }
 
+
     protected function assertMvpRules(int $amount, int $tenureMonths): void
     {
         $errors = [];
@@ -212,5 +214,52 @@ class LoanService
                 'kyc' => ['KYC is not approved. Current status: ' . $kycStatus],
             ]);
         }
+    }
+
+
+    public function repayInstallment(Loan $loan, int $installmentId, int $amount, ?string $reference = null): Loan
+    {
+        return DB::transaction(function () use ($loan, $installmentId, $amount, $reference) {
+            /** @var Installment $installment */
+            $installment = $loan->installments()->lockForUpdate()->findOrFail($installmentId);
+
+            $dueAmount = (int) $installment->principal_amount + (int) $installment->fee_amount;
+            $newPaidAmount = (int) $installment->paid_amount + $amount;
+
+            if ($amount <= 0) {
+                abort(422, 'amount must be greater than zero');
+            }
+
+            if ($newPaidAmount > $dueAmount) {
+                abort(422, 'repayment amount exceeds installment due amount');
+            }
+
+            $installment->update([
+                'paid_amount' => $newPaidAmount,
+                'status' => $newPaidAmount >= $dueAmount ? 'paid' : 'partial',
+                'paid_at' => $newPaidAmount >= $dueAmount ? now() : null,
+            ]);
+
+            $loan->transactions()->create([
+                'loan_id' => $loan->id,
+                'type' => 'repayment',
+                'amount' => $amount,
+                'reference' => $reference,
+                'transacted_at' => now(),
+            ]);
+
+            $hasUnpaidInstallment = $loan->installments()
+                ->where('status', '!=', 'paid')
+                ->exists();
+
+            if (! $hasUnpaidInstallment) {
+                $loan->update([
+                    'status' => Loan::STATUS_COMPLETED,
+                    'completed_at' => now(),
+                ]);
+            }
+
+            return $loan->fresh(['installments', 'transactions']);
+        });
     }
 }

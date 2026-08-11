@@ -11,5 +11,5 @@ Route::prefix('admin')->middleware(['auth:sanctum', 'panel.access:admin'])->grou
     Route::patch('loans/{loan}/fund', [AdminLoansController::class, 'fund']);
     Route::patch('loans/{loan}/reject', [AdminLoansController::class, 'reject']);
     Route::get('loans/{loan}/installments', [AdminLoansController::class, 'installments']);
-
+    Route::post('/loans/{loan}/installments/{installment}/repay', [AdminLoansController::class, 'repay']);
 });

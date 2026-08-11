@@ -1,11 +1,31 @@
 {
-    "name": "modules/loans",
-    "description": "Loans module",
-    "type": "library",
-    "autoload": {
-        "psr-4": {
-            "Modules\\Loans\\": ""
+    "name": "nwidart/loans",
+    "description": "",
+    "authors": [
+        {
+            "name": "Nicolas Widart",
+            "email": "n.widart@gmail.com"
+        }
+    ],
+    "extra": {
+        "laravel": {
+            "providers": [],
+            "aliases": {
+
+            }
         }
     },
-    "require": {}
+    "autoload": {
+        "psr-4": {
+            "Modules\\Loans\\": "app/",
+            "Modules\\Loans\\Database\\Factories\\": "database/factories/",
+            "Modules\\Customers\\Database\\Factories\\": "database/factories/",
+            "Modules\\Loans\\Database\\Seeders\\": "database/seeders/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Modules\\Loans\\Tests\\": "tests/"
+        }
+    }
 }

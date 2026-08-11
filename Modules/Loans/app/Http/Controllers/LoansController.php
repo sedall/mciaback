@@ -32,6 +32,7 @@ class LoansController extends Controller
             ],
         ]);
     }
+
     public function installments(Loan $loan): JsonResponse
     {
         abort_unless($loan->customer_id === auth()->id(), 403);
@@ -40,6 +41,7 @@ class LoansController extends Controller
             'data' => $loan->installments()->orderBy('sequence')->get(),
         ]);
     }
+
     public function store(StoreLoanRequest $request): JsonResponse
     {
         $loan = $this->loanService->createLoan(
@@ -52,5 +54,28 @@ class LoansController extends Controller
             'message' => 'loan_created',
             'data' => $loan->fresh(),
         ], 201);
+    }
+    public function repay(Request $request, Loan $loan, int $installment)
+    {
+        $validated = $request->validate([
+            'amount' => ['required', 'integer', 'min:1'],
+            'reference' => ['nullable', 'string', 'max:255'],
+        ]);
+
+        if ($loan->user_id !== $request->user()->id) {
+            abort(403);
+        }
+
+        $loan = $this->loanService->repayInstallment(
+            $loan,
+            $installment,
+            $validated['amount'],
+            $validated['reference'] ?? null
+        );
+
+        return response()->json([
+            'message' => 'installment repaid successfully',
+            'data' => $loan,
+        ]);
     }
 }
