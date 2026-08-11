@@ -474,7 +474,7 @@ class LoanApiTest extends TestCase
         ]);
 
         $this->actingAs($user, 'sanctum')
-            ->postJson("/api/loans/{$loan->id}/installments/{$installment->id}/repay", [
+            ->postJson("/api/customer/loans/{$loan->id}/installments/{$installment->id}/repay", [
                 'amount' => 1100000,
                 'reference' => 'PAY-001',
             ])
@@ -522,21 +522,21 @@ class LoanApiTest extends TestCase
             'due_date' => now()->addMonths(2),
         ]);
 
-        $this->actingAs($user, 'sanctum')
-            ->postJson("/api/loans/{$loan->id}/installments/{$first->id}/repay", [
+    $this->actingAs($user, 'sanctum')
+            ->postJson("/api/customer/loans/{$loan->id}/installments/{$first->id}/repay", [
                 'amount' => 5500000,
             ])
             ->assertOk();
 
-        $this->actingAs($user, 'sanctum')
-            ->postJson("/api/loans/{$loan->id}/installments/{$second->id}/repay", [
-                'amount' => 5500000,
-            ])
-            ->assertOk();
+             $this->actingAs($user, 'sanctum')
+                 ->postJson("/api/customer/loans/{$loan->id}/installments/{$second->id}/repay", [
+                     'amount' => 5500000,
+                 ])
+                 ->assertOk();
 
-        $loan->refresh();
+             $loan->refresh();
 
-        $this->assertEquals(Loan::STATUS_COMPLETED, $loan->status);
+             $this->assertEquals(Loan::STATUS_COMPLETED, $loan->status);
     }
 
 }
