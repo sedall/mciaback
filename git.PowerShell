@@ -1,0 +1,9 @@
+function push-git {
+    git add .
+    git commit -m "update project"
+    git push origin main
+}
+
+function pull-git {
+    git pull origin main
+}

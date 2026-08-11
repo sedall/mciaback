@@ -1,0 +1,12 @@
+{
+    "Core": true,
+    "Auth": true,
+    "Users": true,
+    "IAM": true,
+    "Clinics": true,
+    "Access": true,
+    "Customers": true,
+    "CustomerDocuments": true,
+    "Loans": true,
+    "Loan": true
+}

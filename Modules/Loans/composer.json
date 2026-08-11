@@ -1,0 +1,11 @@
+{
+    "name": "modules/loans",
+    "description": "Loans module",
+    "type": "library",
+    "autoload": {
+        "psr-4": {
+            "Modules\\Loans\\": ""
+        }
+    },
+    "require": {}
+}
