@@ -7,6 +7,11 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class LoanTransaction extends Model
 {
+
+    public const TYPE_DISBURSEMENT = 'disbursement';
+    public const TYPE_REPAYMENT = 'repayment';
+    public const TYPE_PENALTY = 'penalty';
+
     protected $fillable = [
         'loan_id',
         'type',
@@ -14,6 +19,7 @@ class LoanTransaction extends Model
         'performed_by',
         'meta',
         'transacted_at',
+        'reference',
     ];
 
     protected $casts = [

@@ -7,7 +7,6 @@ use Illuminate\Http\JsonResponse;
 use App\Http\Controllers\Controller;
 use Modules\Loans\Models\Installment;
 use Modules\Loans\Services\LoanService;
-use Illuminate\Validation\ValidationException;
 use Modules\Loans\Http\Requests\FundLoanRequest;
 use Modules\Loans\Http\Requests\RejectLoanRequest;
 use Modules\Loans\Http\Requests\ApproveLoanRequest;
@@ -86,7 +85,7 @@ class AdminLoansController extends Controller
             $loan,
             (int) $installment->id,
             (int) $validated['amount'],
-            $validated['reference'] ?? null
+             $validated['meta'],
         );
         return response()->json([
             'data' => $loan,

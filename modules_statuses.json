@@ -8,5 +8,7 @@
     "Customers": true,
     "CustomerDocuments": true,
     "Loans": true,
-    "Loan": true
+    "Loan": true,
+    "Settings": true,
+    "Tickets": true
 }

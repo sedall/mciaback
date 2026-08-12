@@ -179,7 +179,6 @@ class LoanService
         });
     }
 
-
     protected function assertMvpRules(int $amount, int $tenureMonths): void
     {
         $errors = [];
@@ -215,20 +214,34 @@ class LoanService
             ]);
         }
     }
-
-
     public function repayInstallment(Loan $loan, int $installmentId, int $amount, ?string $reference = null): Loan
     {
+        if ($amount <= 0) {
+            abort(422, 'amount must be greater than zero');
+        }
+
         return DB::transaction(function () use ($loan, $installmentId, $amount, $reference) {
+            $loan = Loan::query()
+                ->whereKey($loan->id)
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            if ($loan->status !== Loan::STATUS_ACTIVE) {
+                abort(422, 'loan is not active');
+            }
+
             /** @var Installment $installment */
-            $installment = $loan->installments()->lockForUpdate()->findOrFail($installmentId);
+            $installment = $loan->installments()
+                ->lockForUpdate()
+                ->findOrFail($installmentId);
+
+            if ($installment->status === Installment::STATUS_PAID) {
+                abort(422, 'installment is already paid');
+            }
 
             $dueAmount = (int) $installment->principal_amount + (int) $installment->fee_amount;
-            $newPaidAmount = (int) $installment->paid_amount + $amount;
-
-            if ($amount <= 0) {
-                abort(422, 'amount must be greater than zero');
-            }
+            $currentPaidAmount = (int) $installment->paid_amount;
+            $newPaidAmount = $currentPaidAmount + $amount;
 
             if ($newPaidAmount > $dueAmount) {
                 abort(422, 'repayment amount exceeds installment due amount');
@@ -236,7 +249,9 @@ class LoanService
 
             $installment->update([
                 'paid_amount' => $newPaidAmount,
-                'status' => $newPaidAmount >= $dueAmount ? 'paid' : 'partial',
+                'status' => $newPaidAmount >= $dueAmount
+                    ? Installment::STATUS_PAID
+                    : Installment::STATUS_PARTIAL,
                 'paid_at' => $newPaidAmount >= $dueAmount ? now() : null,
             ]);
 
@@ -244,12 +259,14 @@ class LoanService
                 'loan_id' => $loan->id,
                 'type' => 'repayment',
                 'amount' => $amount,
-                'reference' => $reference,
+                'meta' => [
+                    'reference' => $reference,
+                ],
                 'transacted_at' => now(),
             ]);
 
             $hasUnpaidInstallment = $loan->installments()
-                ->where('status', '!=', 'paid')
+                ->where('status', '!=', Installment::STATUS_PAID)
                 ->exists();
 
             if (! $hasUnpaidInstallment) {
@@ -262,4 +279,5 @@ class LoanService
             return $loan->fresh(['installments', 'transactions']);
         });
     }
+
 }

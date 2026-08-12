@@ -77,4 +77,11 @@ return [
         public_path('storage') => storage_path('app/public'),
     ],
 
+    'tickets_attachments' => [
+        'driver' => 'local',
+        'root' => storage_path('app/tickets_attachments'),
+        'url' => env('APP_URL') . '/storage/tickets_attachments',
+        'visibility' => 'private',
+    ],
+
 ];

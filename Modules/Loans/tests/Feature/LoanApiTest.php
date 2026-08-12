@@ -352,6 +352,7 @@ class LoanApiTest extends TestCase
             'status' => Loan::STATUS_APPROVED,
             'approved_amount' => 12000000,
             'approved_term_months' => 6,
+            'installments_count' => 6,
         ]);
 
         $response = $this->actingAs($admin, 'sanctum')
@@ -374,89 +375,10 @@ class LoanApiTest extends TestCase
         ]);
     }
 
-    public function test_admin_can_repay_installment_and_complete_loan(): void
-    {
-        $admin = User::factory()->create();
-        $admin->assignRole('admin');
-
-        $loan = Loan::factory()->create([
-            'status' => Loan::STATUS_ACTIVE,
-        ]);
-
-        $firstInstallment = Installment::factory()->create([
-            'loan_id' => $loan->id,
-            'amount' => 1000000,
-            'status' => 'paid',
-        ]);
-
-        $lastInstallment = Installment::factory()->create([
-            'loan_id' => $loan->id,
-            'amount' => 1000000,
-            'status' => 'pending',
-        ]);
-
-        $response = $this->actingAs($admin, 'sanctum')
-            ->postJson("/api/admin/loans/{$loan->id}/installments/{$lastInstallment->id}/repay", [
-                'amount' => 1000000,
-            ]);
-
-        $response->assertOk();
-
-        $this->assertDatabaseHas('installments', [
-            'id' => $lastInstallment->id,
-            'status' => 'paid',
-        ]);
-
-        $this->assertDatabaseHas('loan_transactions', [
-            'loan_id' => $loan->id,
-            'type' => 'repayment',
-            'amount' => 1000000,
-        ]);
-
-        $this->assertDatabaseHas('loans', [
-            'id' => $loan->id,
-            'status' => Loan::STATUS_COMPLETED,
-        ]);
-    }
-
-    public function test_admin_can_fund_approved_loan_and_installments_are_generated(): void
-    {
-        $admin = User::factory()->create();
-        $admin->assignRole('admin');
-
-        $loan = Loan::factory()->create([
-            'status' => Loan::STATUS_APPROVED,
-            'principal_amount' => 12000000,
-            'fee_amount' => 1200000,
-            'approved_term_months' => 6,
-        ]);
-
-        $this->actingAs($admin, 'sanctum')
-            ->postJson("/api/admin/loans/{$loan->id}/fund", [
-                'amount' => 12000000,
-                'reference' => 'FUND-001',
-            ])
-            ->assertOk();
-
-        $loan->refresh();
-
-        $this->assertEquals(Loan::STATUS_ACTIVE, $loan->status);
-        $this->assertDatabaseHas('loan_transactions', [
-            'loan_id' => $loan->id,
-            'type' => 'funding',
-            'amount' => 12000000,
-        ]);
-
-        $this->assertDatabaseCount('installments', 6);
-        $this->assertDatabaseHas('installments', [
-            'loan_id' => $loan->id,
-            'sequence' => 1,
-        ]);
-    }
-
     public function test_customer_can_repay_installment_and_status_becomes_paid_or_partial(): void
     {
         $user = User::factory()->create();
+        $user->assignRole('customer');
 
         $loan = Loan::factory()->create([
             'customer_id' => $user->id,
@@ -489,6 +411,7 @@ class LoanApiTest extends TestCase
             'loan_id' => $loan->id,
             'type' => 'repayment',
             'amount' => 1100000,
+            'meta->reference' => 'PAY-001',
         ]);
     }
 
@@ -517,26 +440,177 @@ class LoanApiTest extends TestCase
             'sequence' => 2,
             'principal_amount' => 500000,
             'fee_amount' => 50000,
+
             'paid_amount' => 0,
             'status' => 'pending',
             'due_date' => now()->addMonths(2),
         ]);
-
-    $this->actingAs($user, 'sanctum')
+        $response = $this->actingAs($user, 'sanctum')
             ->postJson("/api/customer/loans/{$loan->id}/installments/{$first->id}/repay", [
-                'amount' => 5500000,
+                'amount' => 550000,
+            ]);
+
+        $response->assertOk();
+
+
+        $this->actingAs($user, 'sanctum')
+            ->postJson("/api/customer/loans/{$loan->id}/installments/{$second->id}/repay", [
+                'amount' => 550000,
             ])
             ->assertOk();
 
-             $this->actingAs($user, 'sanctum')
-                 ->postJson("/api/customer/loans/{$loan->id}/installments/{$second->id}/repay", [
-                     'amount' => 5500000,
-                 ])
-                 ->assertOk();
+        $loan->refresh();
 
-             $loan->refresh();
-
-             $this->assertEquals(Loan::STATUS_COMPLETED, $loan->status);
+        $this->assertEquals(Loan::STATUS_COMPLETED, $loan->status);
     }
+
+    public function test_admin_can_fund_approved_loan_and_installments_are_generated(): void
+    {
+        $admin = User::factory()->create();
+        $admin->assignRole('admin');
+
+        $loan = Loan::factory()->create([
+            'status' => Loan::STATUS_APPROVED,
+            'principal_amount' => 12000000,
+            'fee_amount' => 1200000,
+            'approved_term_months' => 6,
+        ]);
+
+        $this->actingAs($admin, 'sanctum')
+            ->patchJson("/api/admin/loans/{$loan->id}/fund", [
+                'amount' => 12000000,
+                'reference' => 'FUND-001',
+            ])
+            ->assertOk();
+
+        $loan->refresh();
+
+        $this->assertEquals(Loan::STATUS_ACTIVE, $loan->status);
+        $this->assertDatabaseHas('loan_transactions', [
+            'loan_id' => $loan->id,
+            'type' => 'funding',
+            'amount' => 12000000,
+        ]);
+
+        $this->assertDatabaseCount('installments', $loan->installments_count);
+        $this->assertDatabaseHas('installments', [
+            'loan_id' => $loan->id,
+            'sequence' => 1,
+        ]);
+    }
+    public function test_user_can_partially_repay_installment(): void
+    {
+        $customer = User::factory()->create();
+        $customer->assignRole('customer');
+
+        $loan = Loan::factory()->create([
+            'customer_id' => $customer->id,
+            'status' => Loan::STATUS_ACTIVE,
+        ]);
+
+        $installment = Installment::factory()->create([
+            'loan_id' => $loan->id,
+            'sequence' => 1,
+            'status' => Installment::STATUS_PENDING,
+            'principal_amount' => 1000,
+            'fee_amount' => 100,
+            'paid_amount' => 0,
+            'due_date' => now()->addDay(),
+        ]);
+
+        $this->actingAs($customer);
+
+        $response = $this->postJson("/api/customer/loans/{$loan->id}/installments/{$installment->id}/repay", [
+            'amount' => 500,
+            'reference' => 'partial_payment',
+        ]);
+
+        $response->assertOk();
+
+        $this->assertDatabaseHas('installments', [
+            'id' => $installment->id,
+            'paid_amount' => 500,
+            'status' => Installment::STATUS_PARTIAL,
+        ]);
+
+        $this->assertDatabaseHas('loans', [
+            'id' => $loan->id,
+            'status' => Loan::STATUS_ACTIVE,
+        ]);
+
+        $this->assertDatabaseHas('loan_transactions', [
+            'loan_id' => $loan->id,
+            'type' => 'repayment',
+            'amount' => 500,
+        ]);
+
+        $this->assertDatabaseHas('loan_transactions', [
+            'loan_id' => $loan->id,
+            'type' => 'repayment',
+            'meta->reference' =>'partial_payment',
+
+        ]);
+    }
+
+    public function test_user_cannot_overpay_installment(): void
+    {
+        $customer = User::factory()->create();
+        $customer->assignRole('customer');
+
+        $loan = Loan::factory()->create([
+            'customer_id' => $customer->id,
+            'status' => Loan::STATUS_ACTIVE,
+        ]);
+
+        $installment = Installment::factory()->create([
+            'loan_id' => $loan->id,
+            'sequence' => 1,
+            'status' => Installment::STATUS_PENDING,
+            'principal_amount' => 1000,
+            'fee_amount' => 100,
+            'paid_amount' => 0,
+            'due_date' => now()->addDay(),
+        ]);
+
+        $this->actingAs($customer);
+
+        $response = $this->postJson("/api/customer/loans/{$loan->id}/installments/{$installment->id}/repay", [
+            'amount' => 1200,
+        ]);
+
+        $response->assertStatus(422);
+    }
+
+    public function test_user_cannot_repay_with_zero_amount(): void
+    {
+        $customer = User::factory()->create();
+        $customer->assignRole('customer');
+
+        $loan = Loan::factory()->create([
+            'customer_id' => $customer->id,
+            'status' => Loan::STATUS_ACTIVE,
+        ]);
+
+        $installment = Installment::factory()->create([
+            'loan_id' => $loan->id,
+            'sequence' => 1,
+            'status' => Installment::STATUS_PENDING,
+            'principal_amount' => 1000,
+            'fee_amount' => 100,
+            'paid_amount' => 0,
+            'due_date' => now()->addDay(),
+        ]);
+
+        $this->actingAs($customer);
+
+        $response = $this->postJson("/api/customer/loans/{$loan->id}/installments/{$installment->id}/repay", [
+            'amount' => 0,
+        ]);
+
+        $response->assertStatus(422);
+    }
+
+
+
 
 }

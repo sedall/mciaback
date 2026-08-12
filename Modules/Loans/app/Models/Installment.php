@@ -13,6 +13,11 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class Installment extends Model
 {
     protected $table = 'installments';
+    public const STATUS_PENDING = 'pending';
+    public const STATUS_PAID = 'paid';
+    public const STATUS_OVERDUE = 'overdue';
+    public const STATUS_PARTIAL = 'partial';
+
     use HasFactory;
 
     protected static function newFactory(): Factory
@@ -34,7 +39,8 @@ class Installment extends Model
     protected $casts = [
         'due_date' => 'date',
         'paid_at' => 'datetime',
-        'amount' => 'integer',
+        'principal_amount' => 'integer',
+        'fee_amount' => 'integer',
         'paid_amount' => 'integer',
     ];
 

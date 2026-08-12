@@ -14,8 +14,8 @@ class RepayInstallmentRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'amount' => ['required','integer','min:1'],
-            'reference' => ['nullable','string','max:100'],
+            'amount' => ['required', 'integer', 'min:1'],
+            'reference' => ['nullable', 'string', 'max:100'],
         ];
     }
 }

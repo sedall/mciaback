@@ -16,6 +16,15 @@ class RoleSeeder extends Seeder
             'panel.admin.access',
             'panel.clinic.access',
             'panel.customer.access',
+            'panel.customer.tickets.create',
+            'panel.customer.tickets.view',
+            'panel.customer.tickets.reply',
+            'panel.clinic.tickets.create',
+            'panel.clinic.tickets.view',
+            'panel.clinic.tickets.reply',
+            'panel.admin.tickets.view',
+            'panel.admin.tickets.reply',
+            'panel.admin.tickets.manage',
         ];
 
         foreach ($permissions as $permission) {

@@ -1,0 +1,12 @@
+{
+  "name": "Settings",
+  "alias": "settings",
+  "description": "System settings management module for MCI Project",
+  "keywords": [],
+  "priority": 0,
+  "providers": [
+    "Modules\\Settings\\Providers\\SettingsServiceProvider",
+    "Modules\\Settings\\Providers\\RouteServiceProvider"
+  ],
+  "files": []
+}

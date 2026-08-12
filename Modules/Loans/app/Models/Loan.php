@@ -53,6 +53,8 @@ class Loan extends Model
         'started_at' => 'datetime',
         'completed_at' => 'datetime',
         'rejected_at' => 'datetime',
+        'approved_amount' => 'integer',
+        'approved_term_months' => 'integer',
         'meta' => 'array',
     ];
 

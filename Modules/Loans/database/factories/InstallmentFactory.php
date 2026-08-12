@@ -4,6 +4,7 @@ namespace Modules\Loans\Database\Factories;
 
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Modules\Loans\Models\Installment;
+use Modules\Loans\Models\Loan;
 
 class InstallmentFactory extends Factory
 {
@@ -12,10 +13,9 @@ class InstallmentFactory extends Factory
     public function definition(): array
     {
         return [
-            'loan_id' => null,
-            'installment_number' => 1,
+            'loan_id' => Loan::factory(),
             'due_date' => now()->addMonth(),
-            'amount' => 550000,
+            'fee_amount' => 1000000,
             'paid_amount' => 0,
             'status' => 'pending',
         ];

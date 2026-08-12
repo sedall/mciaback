@@ -5,6 +5,7 @@ namespace Modules\Loans\Http\Controllers;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
+use Modules\Loans\Http\Requests\RepayInstallmentRequest;
 use Modules\Loans\Http\Requests\StoreLoanRequest;
 use Modules\Loans\Models\Loan;
 use Modules\Loans\Services\LoanService;
@@ -55,27 +56,17 @@ class LoansController extends Controller
             'data' => $loan->fresh(),
         ], 201);
     }
-    public function repay(Request $request, Loan $loan, int $installment)
+    public function repay(RepayInstallmentRequest $request, int $loanId, int $installmentId): JsonResponse
     {
-        $validated = $request->validate([
-            'amount' => ['required', 'integer', 'min:1'],
-            'reference' => ['nullable', 'string', 'max:255'],
-        ]);
+        $loan = Loan::query()->findOrFail($loanId);
 
-        if ($loan->user_id !== $request->user()->id) {
-            abort(403);
-        }
-
-        $loan = $this->loanService->repayInstallment(
-            $loan,
-            $installment,
-            $validated['amount'],
-            $validated['reference'] ?? null
+        $updated = $this->loanService->repayInstallment(
+            loan: $loan,
+            installmentId: $installmentId,
+            amount: (int) $request->integer('amount'),
+            reference: $request->input('reference')
         );
 
-        return response()->json([
-            'message' => 'installment repaid successfully',
-            'data' => $loan,
-        ]);
+        return response()->json($updated);
     }
 }

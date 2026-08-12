@@ -16,6 +16,7 @@ class RejectLoanRequest extends FormRequest
         return [
             'admin_note' => ['required_without:reason', 'string', 'max:2000'],
             'reason' => ['required_without:admin_note', 'string', 'max:2000'],
+
         ];
     }
 }
