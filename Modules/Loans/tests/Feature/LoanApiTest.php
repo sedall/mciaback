@@ -49,7 +49,7 @@ class LoanApiTest extends TestCase
         $customer->assignRole('customer');
 
         // استفاده از Factory که ساختیم
-        \Modules\Customers\Models\CustomerProfile::factory()->create([
+        CustomerProfile::factory()->create([
             'user_id' => $customer->id,
         ]);
 
