@@ -17,6 +17,7 @@ class LoanTransaction extends Model
         'type',
         'amount',
         'performed_by',
+        'reference',
         'meta',
         'transacted_at',
         'reference',

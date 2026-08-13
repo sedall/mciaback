@@ -85,7 +85,7 @@ class AdminLoansController extends Controller
             $loan,
             (int) $installment->id,
             (int) $validated['amount'],
-             $validated['meta'],
+            $validated['reference'] ?? null,
         );
         return response()->json([
             'data' => $loan,

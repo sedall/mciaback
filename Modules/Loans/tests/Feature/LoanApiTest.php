@@ -357,9 +357,8 @@ class LoanApiTest extends TestCase
 
         $response = $this->actingAs($admin, 'sanctum')
             ->patchJson("/api/admin/loans/{$loan->id}/fund", [
-                'reference_number' => 'FUND-1001',
+                'reference' => 'FUND-1001',
             ]);
-
         $response->assertOk();
 
         $this->assertDatabaseHas('loans', [
@@ -440,7 +439,6 @@ class LoanApiTest extends TestCase
             'sequence' => 2,
             'principal_amount' => 500000,
             'fee_amount' => 50000,
-
             'paid_amount' => 0,
             'status' => 'pending',
             'due_date' => now()->addMonths(2),
@@ -449,7 +447,6 @@ class LoanApiTest extends TestCase
             ->postJson("/api/customer/loans/{$loan->id}/installments/{$first->id}/repay", [
                 'amount' => 550000,
             ]);
-
         $response->assertOk();
 
 
@@ -478,7 +475,7 @@ class LoanApiTest extends TestCase
 
         $this->actingAs($admin, 'sanctum')
             ->patchJson("/api/admin/loans/{$loan->id}/fund", [
-                'amount' => 12000000,
+                'amount' => 120000000,
                 'reference' => 'FUND-001',
             ])
             ->assertOk();
@@ -489,7 +486,7 @@ class LoanApiTest extends TestCase
         $this->assertDatabaseHas('loan_transactions', [
             'loan_id' => $loan->id,
             'type' => 'funding',
-            'amount' => 12000000,
+            'amount' => 120000000,
         ]);
 
         $this->assertDatabaseCount('installments', $loan->installments_count);

@@ -60,6 +60,8 @@ class LoansController extends Controller
     {
         $loan = Loan::query()->findOrFail($loanId);
 
+        abort_unless($loan->customer_id === $request->user()->id, 403);
+
         $updated = $this->loanService->repayInstallment(
             loan: $loan,
             installmentId: $installmentId,

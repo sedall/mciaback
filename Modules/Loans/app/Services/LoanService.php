@@ -9,20 +9,42 @@ use Illuminate\Validation\ValidationException;
 use Modules\Customers\Services\KycStatusService;
 use Modules\Loans\Models\Installment;
 use Modules\Loans\Models\Loan;
+use Modules\Loans\Models\LoanTransaction;
+use Modules\Settings\Services\SettingService;
 
 class LoanService
 {
     public function __construct(
         protected InstallmentGenerator $installmentGenerator,
-        protected KycStatusService $kycStatusService
+        protected KycStatusService $kycStatusService,
+        protected SettingService $settingService,
     ) {
     }
 
-    public function createLoan(int $customerId, int $amount, int $tenureMonths): Loan {
+    protected function assertTransition(string $from, string $action): void
+    {
+        $map = [
+            'approve' => [Loan::STATUS_PENDING, Loan::STATUS_SUBMITTED, Loan::STATUS_UNDER_REVIEW],
+            'reject'  => [Loan::STATUS_PENDING, Loan::STATUS_SUBMITTED, Loan::STATUS_UNDER_REVIEW, Loan::STATUS_APPROVED],
+            'fund'    => [Loan::STATUS_APPROVED],
+            'repay'   => [Loan::STATUS_ACTIVE],
+        ];
+
+        if (! in_array($from, $map[$action] ?? [], true)) {
+            throw ValidationException::withMessages([
+                'status' => ["Invalid transition: {$from} -> {$action}"],
+            ]);
+        }
+    }
+
+    public function createLoan(int $customerId, int $amount, int $tenureMonths): Loan
+    {
         $this->assertKycApproved($customerId);
         $this->assertMvpRules($amount, $tenureMonths);
         $this->ensureEligibility($customerId);
-        $feeAmount = (int) round($amount * 0.04);
+
+        $feeRate = (float) $this->settingService->get('loans', 'fee_rate', 0.04);
+        $feeAmount = (int) round($amount * $feeRate);
         $totalPayable = $amount + $feeAmount;
 
         return Loan::query()->create([
@@ -31,7 +53,7 @@ class LoanService
             'fee_amount' => $feeAmount,
             'total_payable' => $totalPayable,
             'installments_count' => $tenureMonths,
-            'status' => 'pending',
+            'status' => Loan::STATUS_PENDING,
             'submitted_at' => now(),
         ]);
     }
@@ -69,15 +91,7 @@ class LoanService
 
     public function approveLoan(Loan $loan, array $data): Loan
     {
-        if (!in_array($loan->status, [
-            Loan::STATUS_PENDING,
-            Loan::STATUS_SUBMITTED,
-            Loan::STATUS_UNDER_REVIEW,
-        ], true)) {
-            throw ValidationException::withMessages([
-                'status' => 'فقط وام‌های در انتظار بررسی قابل تایید هستند.',
-            ]);
-        }
+        $this->assertTransition($loan->status, 'approve');
 
         return DB::transaction(function () use ($loan, $data) {
             $loan->update([
@@ -95,16 +109,7 @@ class LoanService
 
     public function rejectLoan(Loan $loan, array $data): Loan
     {
-        if (!in_array($loan->status, [
-            Loan::STATUS_PENDING,
-            Loan::STATUS_SUBMITTED,
-            Loan::STATUS_UNDER_REVIEW,
-            Loan::STATUS_APPROVED,
-        ], true)) {
-            throw ValidationException::withMessages([
-                'status' => 'فقط وام‌های در انتظار بررسی قابل رد هستند.',
-            ]);
-        }
+        $this->assertTransition($loan->status, 'reject');
 
         return DB::transaction(function () use ($loan, $data) {
             $loan->update([
@@ -120,14 +125,10 @@ class LoanService
 
     public function fundLoan(Loan $loan, array $data): Loan
     {
-        return DB::transaction(function () use ($loan, $data) {
-            if ($loan->status !== Loan::STATUS_APPROVED) {
-                throw ValidationException::withMessages([
-                    'status' => 'Only approved loans can be funded.',
-                ]);
-            }
+        $this->assertTransition($loan->status, 'fund');
 
-            $fundedAt = !empty($data['date'])
+        return DB::transaction(function () use ($loan, $data) {
+            $fundedAt = ! empty($data['date'])
                 ? Carbon::parse($data['date'])
                 : now();
 
@@ -154,7 +155,7 @@ class LoanService
                     'fee_amount' => $item['fee_amount'] ?? 0,
                     'late_fee_amount' => $item['late_fee_amount'] ?? 0,
                     'paid_amount' => 0,
-                    'status' => Loan::STATUS_PENDING,
+                    'status' => Installment::STATUS_PENDING,
                 ]);
             }
 
@@ -181,14 +182,24 @@ class LoanService
 
     protected function assertMvpRules(int $amount, int $tenureMonths): void
     {
-        $errors = [];
+        $minAmount = (int) $this->settingService->get('loans', 'min_amount', 10_000_000);
+        $maxAmount = (int) $this->settingService->get('loans', 'max_amount', 500_000_000);
+        $allowedTenures = $this->settingService->get('loans', 'allowed_tenures', [3, 6, 12]);
 
-        if ($amount < 10_000_000 || $amount > 500_000_000) {
-            $errors['amount'] = ['Amount must be between 10,000,000 and 500,000,000 IRR.'];
+        if (! is_array($allowedTenures) || $allowedTenures === []) {
+            $allowedTenures = [3, 6, 12];
         }
 
-        if (! in_array($tenureMonths, [3, 6, 12], true)) {
-            $errors['tenure_months'] = ['Tenure must be one of 3, 6, 12 months.'];
+        $allowedTenures = array_map('intval', $allowedTenures);
+
+        $errors = [];
+
+        if ($amount < $minAmount || $amount > $maxAmount) {
+            $errors['amount'] = ["Amount must be between {$minAmount} and {$maxAmount} IRR."];
+        }
+
+        if (! in_array($tenureMonths, $allowedTenures, true)) {
+            $errors['tenure_months'] = ['Tenure must be one of: ' . implode(', ', $allowedTenures)];
         }
 
         if ($errors !== []) {
@@ -214,10 +225,15 @@ class LoanService
             ]);
         }
     }
+
     public function repayInstallment(Loan $loan, int $installmentId, int $amount, ?string $reference = null): Loan
     {
+        $this->assertTransition($loan->status, 'repay');
+
         if ($amount <= 0) {
-            abort(422, 'amount must be greater than zero');
+            throw ValidationException::withMessages([
+                'amount' => ['amount must be greater than zero'],
+            ]);
         }
 
         return DB::transaction(function () use ($loan, $installmentId, $amount, $reference) {
@@ -227,7 +243,9 @@ class LoanService
                 ->firstOrFail();
 
             if ($loan->status !== Loan::STATUS_ACTIVE) {
-                abort(422, 'loan is not active');
+                throw ValidationException::withMessages([
+                    'loan' => ['loan is not active'],
+                ]);
             }
 
             /** @var Installment $installment */
@@ -236,7 +254,9 @@ class LoanService
                 ->findOrFail($installmentId);
 
             if ($installment->status === Installment::STATUS_PAID) {
-                abort(422, 'installment is already paid');
+                throw ValidationException::withMessages([
+                    'installment' => ['installment is already paid'],
+                ]);
             }
 
             $dueAmount = (int) $installment->principal_amount + (int) $installment->fee_amount;
@@ -244,7 +264,9 @@ class LoanService
             $newPaidAmount = $currentPaidAmount + $amount;
 
             if ($newPaidAmount > $dueAmount) {
-                abort(422, 'repayment amount exceeds installment due amount');
+                throw ValidationException::withMessages([
+                    'amount' => ['repayment amount exceeds installment due amount'],
+                ]);
             }
 
             $installment->update([
@@ -257,10 +279,13 @@ class LoanService
 
             $loan->transactions()->create([
                 'loan_id' => $loan->id,
-                'type' => 'repayment',
+                'type' => LoanTransaction::TYPE_REPAYMENT,
                 'amount' => $amount,
+                'reference' => $reference,
+                'performed_by' => auth()->id(),
                 'meta' => [
                     'reference' => $reference,
+                    'installment_id' => $installmentId,
                 ],
                 'transacted_at' => now(),
             ]);
@@ -279,5 +304,4 @@ class LoanService
             return $loan->fresh(['installments', 'transactions']);
         });
     }
-
 }

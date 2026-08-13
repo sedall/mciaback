@@ -15,6 +15,7 @@ return new class extends Migration
             $table->unsignedBigInteger('amount');
             $table->foreignId('performed_by')->nullable()->constrained('users')->nullOnDelete();
             $table->json('meta')->nullable();
+            $table->string('reference', 50);
             $table->timestamp('transacted_at')->nullable();
             $table->timestamps();
             $table->index(['loan_id', 'type']);
